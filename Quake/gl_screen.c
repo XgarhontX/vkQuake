@@ -1601,6 +1601,10 @@ static void SCR_DrawGUI (void *unused)
 
 	SDL_LockMutex (draw_qcvm_mutex);
 
+	// HDR
+	float brightness_ratio_inv = 1-(vid_paperui.value / vid_paperscene.value);
+	R_PushConstants (cbx, VK_SHADER_STAGE_ALL_GRAPHICS, (4*4 + 3 + 1) * sizeof (float), 1 * sizeof (float), &brightness_ratio_inv);
+	
 	if (scr_drawdialog) // new game confirm
 	{
 		if (con_forcedup)
@@ -1641,6 +1645,10 @@ static void SCR_DrawGUI (void *unused)
 		SCR_DrawConsole (cbx);
 		M_Draw (cbx);
 	}
+
+	// HDR
+	brightness_ratio_inv = 0;
+	R_PushConstants (cbx, VK_SHADER_STAGE_ALL_GRAPHICS, (4*4 + 3 + 1) * sizeof (float), 1 * sizeof (float), &brightness_ratio_inv);
 
 	SDL_UnlockMutex (draw_qcvm_mutex);
 	R_EndDebugUtilsLabel (cbx);

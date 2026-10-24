@@ -129,6 +129,9 @@ void WriteMBOITComposite (vec4 frag_color, float b0, vec4 moments0, out vec4 out
 	frag_color = clamp (frag_color, 0.0f, 1.0f);
 	float transmittance = MBOITTransmittanceAtDepth (MBOITDepth (), b0, moments0);
 	out_color = vec4 (frag_color.rgb * frag_color.a * transmittance, frag_color.a * transmittance);
+
+	out_color.rgb = max (out_color.rgb, vec3(0.0));
+	out_color.w = min (out_color.w, 1.0);
 }
 
 void MBOITWrite (vec4 frag_color)

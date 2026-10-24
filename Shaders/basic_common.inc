@@ -6,5 +6,8 @@ vec4 BasicFragmentColor ()
 	fog = clamp (fog, 0.0, 1.0);
 	frag_color.rgb = mix (push_constants.fog_color, frag_color.rgb, fog);
 
+	frag_color = max(frag_color, vec4(0.0));
+	frag_color.w = min (frag_color.w, 1.0);
+
 	return frag_color;
 }

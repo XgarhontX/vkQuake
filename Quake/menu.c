@@ -2082,8 +2082,12 @@ static void M_GameOptions_Draw (cb_context_t *cbx)
 
 enum
 {
-	GRAPHICS_OPT_GAMMA,
-	GRAPHICS_OPT_CONTRAST,
+	// GRAPHICS_OPT_GAMMA,
+	// GRAPHICS_OPT_CONTRAST,
+	GRAPHICS_OPT_PEAK,
+	GRAPHICS_OPT_SHOULDER,
+	GRAPHICS_OPT_PAPERSCENE,
+	GRAPHICS_OPT_PAPERUI,
 	GRAPHICS_OPT_FOV,
 	GRAPHICS_OPT_8BIT_COLOR,
 	GRAPHICS_OPT_FILTER,
@@ -2199,13 +2203,29 @@ static void M_GraphicsOptions_AdjustSliders (int dir, qboolean mouse)
 		++option;
 	switch (option)
 	{
-	case GRAPHICS_OPT_GAMMA:
-		f = M_GetSliderPos (0.5, 1, vid_gamma.value, true, mouse, clamped_mouse, dir, 0.05, 999);
-		Cvar_SetValue ("gamma", f);
+	// case GRAPHICS_OPT_GAMMA:
+	// 	f = M_GetSliderPos (0.5, 1, vid_gamma.value, true, mouse, clamped_mouse, dir, 0.05, 999);
+	// 	Cvar_SetValue ("gamma", f);
+	// 	break;
+	// case GRAPHICS_OPT_CONTRAST:
+	// 	f = M_GetSliderPos (1, 2, vid_contrast.value, false, mouse, clamped_mouse, dir, 0.05, 999);
+	// 	Cvar_SetValue ("contrast", f);
+	// 	break;
+	case GRAPHICS_OPT_PEAK:
+		f = M_GetSliderPos (0, 1000, vid_peak.value, false, mouse, clamped_mouse, dir, 1, 999);
+		Cvar_SetValue ("peak", f);
 		break;
-	case GRAPHICS_OPT_CONTRAST:
-		f = M_GetSliderPos (1, 2, vid_contrast.value, false, mouse, clamped_mouse, dir, 0.05, 999);
-		Cvar_SetValue ("contrast", f);
+	case GRAPHICS_OPT_SHOULDER:
+		f = M_GetSliderPos (0, 1, vid_shoulder.value, false, mouse, clamped_mouse, dir, 0.01, 999);
+		Cvar_SetValue ("shoulder", f);
+		break;
+	case GRAPHICS_OPT_PAPERSCENE:
+		f = M_GetSliderPos (0, 400, vid_paperscene.value, false, mouse, clamped_mouse, dir, 1, 999);
+		Cvar_SetValue ("paperscene", f);
+		break;
+	case GRAPHICS_OPT_PAPERUI:
+		f = M_GetSliderPos (0, 400, vid_paperui.value, false, mouse, clamped_mouse, dir, 1, 999);
+		Cvar_SetValue ("paperui", f);
 		break;
 	case GRAPHICS_OPT_FOV:
 		f = M_GetSliderPos (80, 130, scr_fov.value, false, mouse, clamped_mouse, dir, 5, 999);
@@ -2354,15 +2374,35 @@ static void M_GraphicsOptions_Draw (cb_context_t *cbx)
 	M_DrawPic (cbx, (320 - p->width) / 2, 4, p);
 
 	// Draw the items in the order of the enum defined above:
-	M_PreviewRow (cbx, GRAPHICS_OPT_GAMMA, top + CHARACTER_SIZE * GRAPHICS_OPT_GAMMA);
-	M_Print (cbx, MENU_LABEL_X, top + CHARACTER_SIZE * GRAPHICS_OPT_GAMMA, "Gamma");
-	r = (1.0 - vid_gamma.value) / 0.5;
-	M_DrawSlider (cbx, MENU_SLIDER_X, top + CHARACTER_SIZE * GRAPHICS_OPT_GAMMA, r, va ("%.2f", vid_gamma.value));
+	// M_PreviewRow (cbx, GRAPHICS_OPT_GAMMA, top + CHARACTER_SIZE * GRAPHICS_OPT_GAMMA);
+	// M_Print (cbx, MENU_LABEL_X, top + CHARACTER_SIZE * GRAPHICS_OPT_GAMMA, "Gamma");
+	// r = (1.0 - vid_gamma.value) / 0.5;
+	// M_DrawSlider (cbx, MENU_SLIDER_X, top + CHARACTER_SIZE * GRAPHICS_OPT_GAMMA, r, va ("%.2f", vid_gamma.value));
+	//
+	// M_PreviewRow (cbx, GRAPHICS_OPT_CONTRAST, top + CHARACTER_SIZE * GRAPHICS_OPT_CONTRAST);
+	// M_Print (cbx, MENU_LABEL_X, top + CHARACTER_SIZE * GRAPHICS_OPT_CONTRAST, "Contrast");
+	// r = vid_contrast.value - 1.0;
+	// M_DrawSlider (cbx, MENU_SLIDER_X, top + CHARACTER_SIZE * GRAPHICS_OPT_CONTRAST, r, va ("%.2f", vid_contrast.value));
 
-	M_PreviewRow (cbx, GRAPHICS_OPT_CONTRAST, top + CHARACTER_SIZE * GRAPHICS_OPT_CONTRAST);
-	M_Print (cbx, MENU_LABEL_X, top + CHARACTER_SIZE * GRAPHICS_OPT_CONTRAST, "Contrast");
-	r = vid_contrast.value - 1.0;
-	M_DrawSlider (cbx, MENU_SLIDER_X, top + CHARACTER_SIZE * GRAPHICS_OPT_CONTRAST, r, va ("%.2f", vid_contrast.value));
+	M_PreviewRow (cbx, GRAPHICS_OPT_PEAK, top + CHARACTER_SIZE * GRAPHICS_OPT_PEAK);
+	M_Print (cbx, MENU_LABEL_X, top + CHARACTER_SIZE * GRAPHICS_OPT_PEAK, "Peak Brightness");
+	r = vid_peak.value / 1000;
+	M_DrawSlider (cbx, MENU_SLIDER_X, top + CHARACTER_SIZE * GRAPHICS_OPT_PEAK, r, va ("%.0f", vid_peak.value));
+
+	M_PreviewRow (cbx, GRAPHICS_OPT_PAPERSCENE, top + CHARACTER_SIZE * GRAPHICS_OPT_PAPERSCENE);
+	M_Print (cbx, MENU_LABEL_X, top + CHARACTER_SIZE * GRAPHICS_OPT_PAPERSCENE, "Paper White Scene");
+	r = vid_paperscene.value / 400;
+	M_DrawSlider (cbx, MENU_SLIDER_X, top + CHARACTER_SIZE * GRAPHICS_OPT_PAPERSCENE, r, va ("%.0f", vid_paperscene.value));
+
+	M_PreviewRow (cbx, GRAPHICS_OPT_PAPERUI, top + CHARACTER_SIZE * GRAPHICS_OPT_PAPERUI);
+	M_Print (cbx, MENU_LABEL_X, top + CHARACTER_SIZE * GRAPHICS_OPT_PAPERUI, "Paper White UI");
+	r = vid_paperui.value / 400;
+	M_DrawSlider (cbx, MENU_SLIDER_X, top + CHARACTER_SIZE * GRAPHICS_OPT_PAPERUI, r, va ("%.0f", vid_paperui.value));
+
+	M_PreviewRow (cbx, GRAPHICS_OPT_SHOULDER, top + CHARACTER_SIZE * GRAPHICS_OPT_SHOULDER);
+	M_Print (cbx, MENU_LABEL_X, top + CHARACTER_SIZE * GRAPHICS_OPT_SHOULDER, "Shoulder Start");
+	r = vid_shoulder.value;
+	M_DrawSlider (cbx, MENU_SLIDER_X, top + CHARACTER_SIZE * GRAPHICS_OPT_SHOULDER, r, va ("%.2f", vid_shoulder.value));
 
 	M_PreviewRow (cbx, GRAPHICS_OPT_FOV, top + CHARACTER_SIZE * GRAPHICS_OPT_FOV);
 	M_Print (cbx, MENU_LABEL_X, top + CHARACTER_SIZE * GRAPHICS_OPT_FOV, "Field of View");
@@ -2370,7 +2410,7 @@ static void M_GraphicsOptions_Draw (cb_context_t *cbx)
 	M_DrawSlider (cbx, MENU_SLIDER_X, top + CHARACTER_SIZE * GRAPHICS_OPT_FOV, r, va ("%.0f", scr_fov.value));
 
 	M_PreviewRow (cbx, GRAPHICS_OPT_8BIT_COLOR, top + CHARACTER_SIZE * GRAPHICS_OPT_8BIT_COLOR);
-	M_Print (cbx, MENU_LABEL_X, top + CHARACTER_SIZE * GRAPHICS_OPT_8BIT_COLOR, "8-bit Color");
+	M_Print (cbx, MENU_LABEL_X, top + CHARACTER_SIZE * GRAPHICS_OPT_8BIT_COLOR, "8-bit Color (SDR)");
 	M_DrawCheckbox (cbx, MENU_VALUE_X, top + CHARACTER_SIZE * GRAPHICS_OPT_8BIT_COLOR, vid_palettize.value);
 
 	M_PreviewRow (cbx, GRAPHICS_OPT_FILTER, top + CHARACTER_SIZE * GRAPHICS_OPT_FILTER);
@@ -2434,7 +2474,7 @@ static void M_GraphicsOptions_Draw (cb_context_t *cbx)
 	M_PreviewRow (cbx, GRAPHICS_OPT_TRANSPARENCY, top + CHARACTER_SIZE * GRAPHICS_OPT_TRANSPARENCY);
 	M_Print (cbx, MENU_LABEL_X, top + CHARACTER_SIZE * GRAPHICS_OPT_TRANSPARENCY, "Transparency");
 	{
-		const char *transparency_modes[] = {"Classic", "Low", "High"};
+		const char *transparency_modes[] = {"Classic", "Low", "High (Broken?)"};
 		M_Print (cbx, MENU_VALUE_X, top + CHARACTER_SIZE * GRAPHICS_OPT_TRANSPARENCY, transparency_modes[(int)CLAMP (0, r_oit.value, 2)]);
 	}
 
@@ -5405,7 +5445,7 @@ void M_UpdateMouse (void)
 	}
 	else if (slider_grab)
 	{
-		const bool graphic_option_has_sliders = ((graphics_options_cursor >= GRAPHICS_OPT_GAMMA) && (graphics_options_cursor <= GRAPHICS_OPT_FOV)) ||
+		const bool graphic_option_has_sliders = ((graphics_options_cursor >= /*GRAPHICS_OPT_GAMMA*/GRAPHICS_OPT_PEAK) && (graphics_options_cursor <= GRAPHICS_OPT_FOV)) ||
 												(graphics_options_cursor == GRAPHICS_OPT_MAX_FPS);
 
 		const bool game_option_has_sliders = ((game_options_cursor >= GAME_OPT_SCALE) && (game_options_cursor <= GAME_OPT_VIEWROLL)) ||

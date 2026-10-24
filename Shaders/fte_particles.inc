@@ -61,4 +61,7 @@ void main ()
 		color.rgb = mix (push_constants.fog_color, color.rgb, fog);
 
 	out_frag_color = color;
+
+	out_frag_color = max(out_frag_color, vec4(0.0));
+	out_frag_color.w = min (out_frag_color.w, 1.0);
 }

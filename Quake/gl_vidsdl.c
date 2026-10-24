@@ -119,8 +119,12 @@ cvar_t		  vid_filter = {"vid_filter", "1", CVAR_ARCHIVE};
 cvar_t		  vid_anisotropic = {"vid_anisotropic", "1", CVAR_ARCHIVE};
 cvar_t		  vid_fsaa = {"vid_fsaa", "4", CVAR_ARCHIVE};
 cvar_t		  vid_fsaamode = {"vid_fsaamode", "0", CVAR_ARCHIVE};
-cvar_t		  vid_gamma = {"gamma", "0.9", CVAR_ARCHIVE};		// johnfitz -- moved here from view.c
-cvar_t		  vid_contrast = {"contrast", "1.4", CVAR_ARCHIVE}; // QuakeSpasm, MarkV
+// cvar_t		  vid_gamma = {"gamma", "1.0", CVAR_ARCHIVE};		// johnfitz -- moved here from view.c
+// cvar_t		  vid_contrast = {"contrast", "1.0", CVAR_ARCHIVE}; // QuakeSpasm, MarkV
+cvar_t		  vid_shoulder = {"shoulder", "0.80", CVAR_ARCHIVE}; // HDR
+cvar_t		  vid_peak = {"peak", "400", CVAR_ARCHIVE}; // HDR
+cvar_t		  vid_paperscene = {"paperscene", "203", CVAR_ARCHIVE}; // HDR
+cvar_t		  vid_paperui = {"paperui", "40", CVAR_ARCHIVE}; // HDR
 #if defined(_DEBUG)
 static cvar_t r_raydebug = {"r_raydebug", "0", 0};
 #endif
@@ -264,8 +268,12 @@ VID_Gamma_Init -- call on init
 */
 static void VID_Gamma_Init (void)
 {
-	Cvar_RegisterVariable (&vid_gamma);
-	Cvar_RegisterVariable (&vid_contrast);
+	// Cvar_RegisterVariable (&vid_gamma);
+	// Cvar_RegisterVariable (&vid_contrast);
+	Cvar_RegisterVariable (&vid_shoulder);
+	Cvar_RegisterVariable (&vid_peak);
+	Cvar_RegisterVariable (&vid_paperscene);
+	Cvar_RegisterVariable (&vid_paperui);
 }
 
 /*
@@ -1532,14 +1540,31 @@ static void GL_InitDevice (void)
 
 	if (extended_format_support == VK_TRUE)
 	{
-		vkGetPhysicalDeviceFormatProperties (vulkan_physical_device, VK_FORMAT_A2B10G10R10_UNORM_PACK32, &format_properties);
-		qboolean a2_b10_g10_r10_support = (format_properties.optimalTilingFeatures & REQUIRED_COLOR_BUFFER_FEATURES) == REQUIRED_COLOR_BUFFER_FEATURES;
+		// vkGetPhysicalDeviceFormatProperties (vulkan_physical_device, VK_FORMAT_A2B10G10R10_UNORM_PACK32, &format_properties);
+		// qboolean a2_b10_g10_r10_support = (format_properties.optimalTilingFeatures & REQUIRED_COLOR_BUFFER_FEATURES) == REQUIRED_COLOR_BUFFER_FEATURES;
+		//
+		// if (a2_b10_g10_r10_support)
+		// {
+		// 	Con_Printf ("Using A2B10G10R10 color buffer format\n");
+		// 	vulkan_globals.color_format = VK_FORMAT_A2B10G10R10_UNORM_PACK32;
+		// }
 
-		if (a2_b10_g10_r10_support)
+		vkGetPhysicalDeviceFormatProperties (vulkan_physical_device, VK_FORMAT_R16G16B16A16_SFLOAT, &format_properties);
+		qboolean hdr_support = (format_properties.optimalTilingFeatures & REQUIRED_COLOR_BUFFER_FEATURES) == REQUIRED_COLOR_BUFFER_FEATURES;
+
+		if (hdr_support)
 		{
-			Con_Printf ("Using A2B10G10R10 color buffer format\n");
-			vulkan_globals.color_format = VK_FORMAT_A2B10G10R10_UNORM_PACK32;
+			Con_Printf ("Using VK_FORMAT_R16G16B16A16_SFLOAT color buffer format\n");
+			vulkan_globals.color_format = VK_FORMAT_R16G16B16A16_SFLOAT;
 		}
+		else
+		{
+			Sys_Error ("HDR failed vkGetPhysicalDeviceFormatProperties.");
+		}
+	}
+	else
+	{
+		Sys_Error ("HDR failed extended_format_support.");
 	}
 
 	// Find depth format
@@ -2591,30 +2616,32 @@ static qboolean GL_CreateSwapChain (void)
 	if (err != VK_SUCCESS)
 		Sys_Error ("fpGetPhysicalDeviceSurfaceFormatsKHR failed with code %i", (int)err);
 
-	VkFormat		swap_chain_format = VK_FORMAT_B8G8R8A8_UNORM;
-	VkColorSpaceKHR swap_chain_color_space = VK_COLOR_SPACE_SRGB_NONLINEAR_KHR;
-
-	if (surface_formats[0].format != VK_FORMAT_UNDEFINED || format_count > 1)
-	{
-		qboolean found_wanted_format = false;
-		for (i = 0; i < format_count; ++i)
-		{
-			if (surface_formats[i].format == swap_chain_format && surface_formats[i].colorSpace == swap_chain_color_space)
-			{
-				found_wanted_format = true;
-				break;
-			}
-		}
-
-		// If we can't find VK_FORMAT_B8G8R8A8_UNORM/VK_COLOR_SPACE_SRGB_NONLINEAR_KHR select first entry
-		// I doubt this will ever happen, but the spec doesn't guarantee it
-		if (!found_wanted_format)
-		{
-			swap_chain_format = surface_formats[0].format;
-			swap_chain_color_space = surface_formats[0].colorSpace;
-		}
-	}
-
+	// VkFormat		swap_chain_format = VK_FORMAT_B8G8R8A8_UNORM;
+	// VkColorSpaceKHR swap_chain_color_space = VK_COLOR_SPACE_SRGB_NONLINEAR_KHR;
+	//
+	// if (surface_formats[0].format != VK_FORMAT_UNDEFINED || format_count > 1)
+	// {
+	// 	qboolean found_wanted_format = false;
+	// 	for (i = 0; i < format_count; ++i)
+	// 	{
+	// 		if (surface_formats[i].format == swap_chain_format && surface_formats[i].colorSpace == swap_chain_color_space)
+	// 		{
+	// 			found_wanted_format = true;
+	// 			break;
+	// 		}
+	// 	}
+	//
+	// 	// If we can't find VK_FORMAT_B8G8R8A8_UNORM/VK_COLOR_SPACE_SRGB_NONLINEAR_KHR select first entry
+	// 	// I doubt this will ever happen, but the spec doesn't guarantee it
+	// 	if (!found_wanted_format)
+	// 	{
+	// 		swap_chain_format = surface_formats[0].format;
+	// 		swap_chain_color_space = surface_formats[0].colorSpace;
+	// 	}
+	// }
+	VkFormat		swap_chain_format = VK_FORMAT_R16G16B16A16_SFLOAT;
+	VkColorSpaceKHR swap_chain_color_space = VK_COLOR_SPACE_EXTENDED_SRGB_LINEAR_EXT;
+	
 	uint32_t present_mode_count = 0;
 	err = fpGetPhysicalDeviceSurfacePresentModesKHR (vulkan_physical_device, vulkan_surface, &present_mode_count, NULL);
 	if (err != VK_SUCCESS)
@@ -3474,12 +3501,18 @@ static void GL_EndRenderingTask (end_rendering_parms_t *parms)
 
 		// Render post process
 		GL_Viewport (cbx, 0, 0, vid.width, vid.height, 0.0f, 1.0f);
-		float postprocess_values[2] = {vid_gamma.value, q_min (2.0f, q_max (1.0f, vid_contrast.value))};
-
+		float postprocess_values[3] = {
+			// vid_gamma.value,
+			// q_min (2.0f, q_max (1.0f, vid_contrast.value)),
+			q_min (0.999f, q_max (0.0f, vid_shoulder.value)),
+			q_max (0.f, vid_peak.value),
+			q_max (1.f, vid_paperscene.value),
+		};
+		
 		R_BindPipeline (cbx, VK_PIPELINE_BIND_POINT_GRAPHICS, vulkan_globals.postprocess_pipeline);
 		vkCmdBindDescriptorSets (
 			cbx->cb, VK_PIPELINE_BIND_POINT_GRAPHICS, vulkan_globals.postprocess_pipeline.layout.handle, 0, 1, &postprocess_descriptor_set, 0, NULL);
-		R_PushConstants (cbx, VK_SHADER_STAGE_FRAGMENT_BIT, 0, 2 * sizeof (float), postprocess_values);
+		R_PushConstants (cbx, VK_SHADER_STAGE_FRAGMENT_BIT, 0, 3 * sizeof (float), postprocess_values);
 		vkCmdDraw (cbx->cb, 3, 1, 0, 0);
 	}
 

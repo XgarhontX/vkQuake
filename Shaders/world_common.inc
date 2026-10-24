@@ -32,5 +32,8 @@ vec4 WorldFragmentColor ()
 	if (use_alpha_blend)
 		frag_color.a = push_constants.alpha;
 
+	frag_color = max (frag_color, vec4(0)); // safe
+	frag_color.w = min (frag_color.w, 1);
+
 	return frag_color;
 }
