@@ -14,6 +14,7 @@ See the GNU General Public License for more details.
 */
 
 #include "quakedef.h"
+#include "r_bloomhdr.h"
 #include "r_ssao.h"
 
 #define MAX_FRAME_STEPS		 64
@@ -41,6 +42,13 @@ typedef enum
 
 typedef void (*frame_recorder_t) (cb_context_t *cbx);
 
+// TODO: this is dirty! it's solely for bloom, since optional screen effects can flipflop read/write index
+static uint32_t scene_color_index;
+uint32_t R_SceneColorBufferIndex (void)
+{
+	return scene_color_index;
+}
+
 // Draw-stage identity is independent of attachment use and graphics grouping.
 typedef enum
 {
@@ -52,6 +60,8 @@ typedef enum
 	DRAW_TRANSPARENCY_COMPOSITE,
 	DRAW_OIT_RESOLVE,
 	DRAW_BLENDED_PARTICLES,
+	DRAW_BLOOMHDR_GENERATE,
+	DRAW_BLOOMHDR_COMPOSITE,
 	DRAW_UI,
 	DRAW_POST_PROCESS,
 } draw_stage_t;
@@ -244,6 +254,15 @@ static void R_DescribeFrame (frame_desc_t *desc, main_render_pass_variant_t vari
 	}
 	R_NextSubpass (&builder, SUBPASS_FTE_PARTICLES);
 	R_AddGraphicsWork (&builder, DRAW_BLENDED_PARTICLES, SCBX_FTE_PARTICLES_BLEND, SCBX_FTE_PARTICLES_BLEND);
+	if (r_bloomhdr.value > 0)
+	{
+		R_EndGraphicsPass (&builder);
+		R_AddRecordWork (&builder, R_ComputeBloomHDR);
+		R_BeginGraphicsPass (&builder, FRAME_TARGET_SCENE, SUBPASS_BLOOMHDR_GENERATE);
+		R_AddGraphicsWork (&builder, DRAW_BLOOMHDR_GENERATE, SCBX_BLOOMHDR_GENERATE, SCBX_BLOOMHDR_GENERATE);
+		R_NextSubpass (&builder, SUBPASS_BLOOMHDR_COMPOSITE);
+		R_AddGraphicsWork (&builder, DRAW_BLOOMHDR_COMPOSITE, SCBX_BLOOMHDR_COMPOSITE, SCBX_BLOOMHDR_COMPOSITE);
+	}
 	R_EndGraphicsPass (&builder);
 
 	// When disabled, this records the scene-to-GUI memory barrier instead.
@@ -768,6 +787,7 @@ uint32_t R_RecordFrame (
 	VkCommandBuffer					 command_buffer = vulkan_globals.primary_cb_contexts[PCBX_RENDER_PASSES].cb;
 	const bool	 screen_effects = parms->render_warp || parms->vid_palettize || (parms->polyblend && parms->v_blend[3]) || parms->menu || parms->ray_debug;
 	const bool	 msaa = current_layout.samples != VK_SAMPLE_COUNT_1_BIT;
+	scene_color_index = screen_effects ? 1 : 0;
 	VkClearValue clear_values[MAX_PASS_ATTACHMENTS] = {0};
 	clear_values[0] = parms->color_clear_value;
 	if (msaa)
@@ -1054,6 +1074,12 @@ static void R_CreateScenePasses (main_render_pass_variant_t variant)
 	subpass_descriptions[SUBPASS_FTE_PARTICLES].pInputAttachments = &depth_read_attachment_reference;
 	if (resolve)
 		subpass_descriptions[SUBPASS_FTE_PARTICLES].pResolveAttachments = &resolve_attachment_reference;
+
+	// Bloom runs after the MSAA resolve, so it only blends onto the single-sample scene color (attachment 0).
+	subpass_descriptions[SUBPASS_BLOOMHDR_GENERATE].colorAttachmentCount = 1;
+	subpass_descriptions[SUBPASS_BLOOMHDR_GENERATE].pColorAttachments = &resolve_attachment_reference;
+	subpass_descriptions[SUBPASS_BLOOMHDR_GENERATE].pipelineBindPoint = VK_PIPELINE_BIND_POINT_GRAPHICS;
+	subpass_descriptions[SUBPASS_BLOOMHDR_COMPOSITE] = subpass_descriptions[SUBPASS_BLOOMHDR_GENERATE];
 
 	R_CreateGraphicsPasses (
 		variant, FRAME_TARGET_SCENE, attachment_descriptions,

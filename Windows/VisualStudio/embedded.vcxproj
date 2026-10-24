@@ -125,6 +125,23 @@
       <Command Condition="'$(Configuration)|$(Platform)'=='Release|x64'">$(VULKAN_SDK)\bin\glslangValidator.exe --target-env vulkan1.1 -V "%(FullPath)" -o "$(SolutionDir)..\..\Shaders\Compiled\Release\%(Filename)%(Extension).spv"
 "$(SolutionDir)\Build-bintoc\$(PlatformShortName)\$(Configuration)\bintoc.exe" "$(SolutionDir)..\..\Shaders\Compiled\Release\%(Filename)%(Extension).spv" %(Filename)%(Extension)_spv "$(SolutionDir)..\..\Shaders\Compiled\Release\%(Filename)%(Extension).c"</Command>
     </CustomBuild>
+    <CustomBuild Include="..\..\Shaders\bloomhdr_downfilter.comp">
+      <AdditionalInputs>$(SolutionDir)..\..\Shaders\bloomhdr_downsample.inc;%(AdditionalInputs)</AdditionalInputs>
+      <FileType>Document</FileType>
+    </CustomBuild>
+    <CustomBuild Include="..\..\Shaders\bloomhdr_down.comp">
+      <AdditionalInputs>$(SolutionDir)..\..\Shaders\bloomhdr_downsample.inc;%(AdditionalInputs)</AdditionalInputs>
+      <FileType>Document</FileType>
+    </CustomBuild>
+    <CustomBuild Include="..\..\Shaders\bloomhdr_up.comp">
+      <FileType>Document</FileType>
+    </CustomBuild>
+    <CustomBuild Include="..\..\Shaders\bloomhdr_upfilter.comp">
+        <FileType>Document</FileType>
+    </CustomBuild>
+    <CustomBuild Include="..\..\Shaders\bloomhdr_composite.frag">
+      <FileType>Document</FileType>
+    </CustomBuild>
     <CustomBuild Include="..\..\Shaders\ssao_filter.comp">
       <AdditionalInputs>$(SolutionDir)..\..\Shaders\ssao_filter.inc;$(SolutionDir)..\..\Shaders\gtao.inc;%(AdditionalInputs)</AdditionalInputs>
       <FileType>Document</FileType>
@@ -419,6 +436,7 @@ $(VULKAN_SDK)\bin\spirv-opt.exe -Os --canonicalize-ids --strip-debug "$(Solution
     </CustomBuild>
     <None Include="..\..\Shaders\alias_common.inc" />
     <None Include="..\..\Shaders\ssao_composite.inc" />
+    <None Include="..\..\Shaders\bloomhdr_downsample.inc" />
     <None Include="..\..\Shaders\gtao.inc" />
     <None Include="..\..\Shaders\ssao_evaluate.inc" />
     <None Include="..\..\Shaders\ssao_filter.inc" />

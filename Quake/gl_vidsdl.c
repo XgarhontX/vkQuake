@@ -25,6 +25,7 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 
 #include "quakedef.h"
 #include "r_ssao.h"
+#include "r_bloomhdr.h"
 #define NO_SDL_VULKAN_TYPEDEFS
 #include "cfgfile.h"
 #include "bgmusic.h"
@@ -2874,6 +2875,7 @@ static void GL_CreateRenderResources (void)
 		GL_CreateUIColorBuffer ();
 	GL_CreateDepthBuffer ();
 	R_CreateSSAO (depth_buffer);
+	R_CreateBloomHDR (color_buffers_view);
 	R_CreateRenderPasses ();
 	GL_CreateFrameBuffers ();
 	R_CreatePipelines ();
@@ -2969,6 +2971,7 @@ static void GL_DestroyRenderResources (void)
 	}
 	vkDestroyImageView (vulkan_globals.device, depth_buffer_view, NULL);
 	R_DestroySSAO ();
+	R_DestroyBloomHDR ();
 	vkDestroyImage (vulkan_globals.device, depth_buffer, NULL);
 	R_FreeVulkanMemory (&depth_buffer_memory, &num_vulkan_misc_allocations);
 

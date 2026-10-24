@@ -204,6 +204,11 @@ SHADER_OBJS = \
 	ssao_filter_comp.o \
 	ssao_filter_fp16_comp.o \
 	ssao_composite_msaa_frag.o \
+	bloomhdr_downfilter_comp.o \
+	bloomhdr_down_comp.o \
+	bloomhdr_up_comp.o \
+	bloomhdr_upfilter_comp.o \
+	bloomhdr_composite_frag.o \
 	postprocess_vert.o \
 	wboit_resolve_frag.o \
 	wboit_resolve_msaa_frag.o \

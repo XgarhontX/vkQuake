@@ -229,6 +229,8 @@ typedef enum
 	SCBX_GUI,
 	SCBX_POST_PROCESS,
 	SCBX_ENTITY_SSAO,
+	SCBX_BLOOMHDR_GENERATE,
+	SCBX_BLOOMHDR_COMPOSITE,
 	SCBX_NUM,
 	// Last pass before UI
 	SCBX_MAIN_OPAQUE_PASS_LAST = SCBX_FTE_PARTICLES_BLEND,
@@ -311,6 +313,8 @@ static const int SECONDARY_CB_MULTIPLICITY[SCBX_NUM] = {
 	1,				  // SCBX_GUI,
 	1,				  // SCBX_POST_PROCESS,
 	1,				  // SCBX_ENTITY_SSAO
+	1,				  // SCBX_BLOOMHDR_GENERATE
+	1,				  // SCBX_BLOOMHDR_COMPOSITE
 };
 
 // A command buffer and its current drawing state. Only one task uses a context

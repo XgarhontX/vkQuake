@@ -30,6 +30,8 @@ typedef enum
 	SUBPASS_MBOIT_MOMENTS,
 	SUBPASS_MBOIT_COMPOSITE,
 	SUBPASS_OIT_RESOLVE,
+	SUBPASS_BLOOMHDR_GENERATE,
+	SUBPASS_BLOOMHDR_COMPOSITE,
 	SUBPASS_POST_PROCESS,
 	SUBPASS_COUNT,
 } subpass_type_t;
@@ -100,6 +102,7 @@ uint32_t R_RecordFrame (
 	end_rendering_parms_t *parms, bool swapchain_acquired, uint32_t swapchain_index, VkCommandBuffer *submit_buffers, uint32_t submit_capacity,
 	void (*record_readback) (void *), void *readback_data);
 
+uint32_t R_SceneColorBufferIndex (void);
 bool R_SetupRenderPasses (void);
 void R_CreateRenderPasses (void);
 void R_DestroyRenderPasses (void);

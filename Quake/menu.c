@@ -23,6 +23,7 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 #include "quakedef.h"
 #include "bgmusic.h"
 #include "in_sdl.h"
+#include "r_bloomhdr.h"
 #include "r_ssao.h"
 
 void (*vid_menucmdfn) (void); // johnfitz
@@ -2088,6 +2089,9 @@ enum
 	GRAPHICS_OPT_SHOULDER,
 	GRAPHICS_OPT_PAPERSCENE,
 	GRAPHICS_OPT_PAPERUI,
+	GRAPHICS_OPT_BLOOM_ENABLED,
+	GRAPHICS_OPT_BLOOM_INTENSITY,
+	GRAPHICS_OPT_BLOOM_THRESHOLD,
 	GRAPHICS_OPT_FOV,
 	GRAPHICS_OPT_8BIT_COLOR,
 	GRAPHICS_OPT_FILTER,
@@ -2226,6 +2230,17 @@ static void M_GraphicsOptions_AdjustSliders (int dir, qboolean mouse)
 	case GRAPHICS_OPT_PAPERUI:
 		f = M_GetSliderPos (0, 400, vid_paperui.value, false, mouse, clamped_mouse, dir, 1, 999);
 		Cvar_SetValue ("paperui", f);
+		break;
+	case GRAPHICS_OPT_BLOOM_ENABLED:
+		Cvar_SetValueQuick (&r_bloomhdr, (float)(((int)r_bloomhdr.value + 2 + dir) % 2));
+		break;
+	case GRAPHICS_OPT_BLOOM_INTENSITY:
+		f = M_GetSliderPos (0, 2, r_bloomhdr_intensity.value, false, mouse, clamped_mouse, dir, 0.1, 999);
+		Cvar_SetValue ("r_bloomhdr_intensity", f);
+		break;
+	case GRAPHICS_OPT_BLOOM_THRESHOLD:
+		f = M_GetSliderPos (0, 2, r_bloomhdr_threshold.value, false, mouse, clamped_mouse, dir, 0.1, 999);
+		Cvar_SetValue ("r_bloomhdr_threshold", f);
 		break;
 	case GRAPHICS_OPT_FOV:
 		f = M_GetSliderPos (80, 130, scr_fov.value, false, mouse, clamped_mouse, dir, 5, 999);
@@ -2403,6 +2418,20 @@ static void M_GraphicsOptions_Draw (cb_context_t *cbx)
 	M_Print (cbx, MENU_LABEL_X, top + CHARACTER_SIZE * GRAPHICS_OPT_SHOULDER, "Shoulder Start");
 	r = vid_shoulder.value;
 	M_DrawSlider (cbx, MENU_SLIDER_X, top + CHARACTER_SIZE * GRAPHICS_OPT_SHOULDER, r, va ("%.2f", vid_shoulder.value));
+
+	M_PreviewRow (cbx, GRAPHICS_OPT_BLOOM_ENABLED, top + CHARACTER_SIZE * GRAPHICS_OPT_BLOOM_ENABLED);
+	M_Print (cbx, MENU_LABEL_X, top + CHARACTER_SIZE * GRAPHICS_OPT_BLOOM_ENABLED, "Bloom");
+	M_DrawCheckbox (cbx, MENU_VALUE_X, top + CHARACTER_SIZE * GRAPHICS_OPT_BLOOM_ENABLED, r_bloomhdr.value);
+
+	M_PreviewRow (cbx, GRAPHICS_OPT_BLOOM_INTENSITY, top + CHARACTER_SIZE * GRAPHICS_OPT_BLOOM_INTENSITY);
+	M_Print (cbx, MENU_LABEL_X, top + CHARACTER_SIZE * GRAPHICS_OPT_BLOOM_INTENSITY, "Bloom Intensity");
+	r = r_bloomhdr_intensity.value / 2;
+	M_DrawSlider (cbx, MENU_SLIDER_X, top + CHARACTER_SIZE * GRAPHICS_OPT_BLOOM_INTENSITY, r, va ("%.1f", r_bloomhdr_intensity.value));
+
+	M_PreviewRow (cbx, GRAPHICS_OPT_BLOOM_THRESHOLD, top + CHARACTER_SIZE * GRAPHICS_OPT_BLOOM_THRESHOLD);
+	M_Print (cbx, MENU_LABEL_X, top + CHARACTER_SIZE * GRAPHICS_OPT_BLOOM_THRESHOLD, "Bloom Threshold");
+	r = r_bloomhdr_threshold.value / 2;
+	M_DrawSlider (cbx, MENU_SLIDER_X, top + CHARACTER_SIZE * GRAPHICS_OPT_BLOOM_THRESHOLD, r, va ("%.1f", r_bloomhdr_threshold.value));
 
 	M_PreviewRow (cbx, GRAPHICS_OPT_FOV, top + CHARACTER_SIZE * GRAPHICS_OPT_FOV);
 	M_Print (cbx, MENU_LABEL_X, top + CHARACTER_SIZE * GRAPHICS_OPT_FOV, "Field of View");
