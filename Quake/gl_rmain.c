@@ -23,6 +23,7 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 
 #include "quakedef.h"
 #include "r_ssao.h"
+#include "r_bloomhdr.h"
 #include "tasks.h"
 #include "atomics.h"
 
@@ -1644,6 +1645,18 @@ void R_RenderView (
 		Task_AddDependency (begin_rendering_task, draw_particles_task);
 		Task_AddDependency (draw_particles_task, draw_done_task);
 
+		if (r_bloomhdr.value > 0)
+		{
+			task_handle_t draw_bloomhdr_task = Task_AllocateAndAssignFunc (R_DrawBloomHDRTask, NULL, 0);
+			Task_AddDependency (draw_particles_task, draw_bloomhdr_task);
+			Task_AddDependency (draw_view_model_task, draw_bloomhdr_task);
+			Task_AddDependency (draw_entities_task, draw_bloomhdr_task);
+			Task_AddDependency (draw_alpha_entities_task, draw_bloomhdr_task);
+			Task_AddDependency (begin_rendering_task, draw_bloomhdr_task);
+			Task_AddDependency (draw_bloomhdr_task, draw_done_task);
+			Task_Submit (draw_bloomhdr_task);
+		}
+
 		task_handle_t build_tlas_task = Task_AllocateAndAssignFunc (R_BuildTopLevelAccelerationStructure, NULL, 0);
 		Task_AddDependency (store_efrags, build_tlas_task);
 		Task_AddDependency (begin_rendering_task, build_tlas_task);
@@ -1700,6 +1713,8 @@ void R_RenderView (
 			PScript_EmitParticlesTask (pi, NULL);
 		R_DrawParticlesTask (NULL);
 		R_DrawViewModelTask (NULL);
+		if (r_bloomhdr.value > 0) 
+			R_DrawBloomHDRTask (NULL);
 		if (r_gpulightmapupdate.value)
 		{
 			R_BuildTopLevelAccelerationStructure (NULL);

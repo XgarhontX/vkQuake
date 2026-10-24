@@ -25,6 +25,7 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 
 #include "quakedef.h"
 #include "r_ssao.h"
+#include "r_bloomhdr.h"
 #include "gl_heap.h"
 #include <float.h>
 
@@ -2013,6 +2014,46 @@ void R_CreatePipelineLayouts ()
 	}
 
 	{
+		// HDR Bloom pass
+		// Fragment composite
+		VkDescriptorSetLayout composite_set_layouts[] = {
+			vulkan_globals.single_texture_set_layout.handle,
+		};
+		VkPushConstantRange composite_range = {VK_SHADER_STAGE_FRAGMENT_BIT, 0, sizeof (bloomhdr_constants_t)};
+		VkPipelineLayoutCreateInfo pipeline_layout_create_info = {
+			.sType = VK_STRUCTURE_TYPE_PIPELINE_LAYOUT_CREATE_INFO,
+			.setLayoutCount = countof (composite_set_layouts),
+			.pSetLayouts = composite_set_layouts,
+			.pushConstantRangeCount = 1,
+			.pPushConstantRanges = &composite_range,
+		};
+		if (vkCreatePipelineLayout (vulkan_globals.device, &pipeline_layout_create_info, NULL, &bloomhdr_fragment_layout.handle) != VK_SUCCESS)
+			Sys_Error ("Couldn't create HDR bloom composite pipeline layout");
+		bloomhdr_fragment_layout.push_constant_range = composite_range;
+		bloomhdr_fragment_layout.mboit_input_attachment_set = -1;
+
+		// Compute prefilter/downsample/upsample
+		VkDescriptorSetLayout compute_set_layouts[] = {
+			vulkan_globals.single_texture_set_layout.handle,
+			vulkan_globals.single_texture_cs_write_set_layout.handle,
+			vulkan_globals.single_texture_set_layout.handle, // scene color, used by the final upsample
+		};
+		VkPushConstantRange compute_range = {VK_SHADER_STAGE_COMPUTE_BIT, 0, sizeof (bloomhdr_constants_t)};
+		pipeline_layout_create_info.setLayoutCount = countof (compute_set_layouts);
+		pipeline_layout_create_info.pSetLayouts = compute_set_layouts;
+		pipeline_layout_create_info.pPushConstantRanges = &compute_range;
+		if (vkCreatePipelineLayout (vulkan_globals.device, &pipeline_layout_create_info, NULL, &bloomhdr_compute_layout.handle) != VK_SUCCESS)
+			Sys_Error ("Couldn't create HDR bloom compute pipeline layout");
+		bloomhdr_compute_layout.push_constant_range = compute_range;
+		bloomhdr_compute_layout.mboit_input_attachment_set = -1;
+
+		bloomhdr_compute_pipeline_downfilter.layout = bloomhdr_compute_layout;
+		bloomhdr_compute_pipeline_down.layout = bloomhdr_compute_layout;
+		bloomhdr_compute_pipeline_up.layout = bloomhdr_compute_layout;
+		bloomhdr_compute_pipeline_upfilter.layout = bloomhdr_compute_layout;
+	}
+
+	{
 		// WBOIT resolve
 		VkDescriptorSetLayout wboit_resolve_descriptor_set_layouts[1] = {
 			vulkan_globals.oit_input_attachment_set_layout.handle,
@@ -2603,6 +2644,11 @@ DECLARE_SHADER_MODULE (ssao_mip_comp);
 DECLARE_SHADER_MODULE (ssao_mip_fp16_comp);
 DECLARE_SHADER_MODULE (ssao_mip_msaa_comp);
 DECLARE_SHADER_MODULE (ssao_mip_msaa_fp16_comp);
+DECLARE_SHADER_MODULE (bloomhdr_downfilter_comp);
+DECLARE_SHADER_MODULE (bloomhdr_down_comp);
+DECLARE_SHADER_MODULE (bloomhdr_up_comp);
+DECLARE_SHADER_MODULE (bloomhdr_upfilter_comp);
+DECLARE_SHADER_MODULE (bloomhdr_composite_frag);
 DECLARE_SHADER_MODULE (wboit_resolve_frag);
 DECLARE_SHADER_MODULE (wboit_resolve_msaa_frag);
 DECLARE_SHADER_MODULE (mboit_resolve_frag);
@@ -4074,6 +4120,34 @@ static void R_CreatePostprocessPipelines ()
 		}
 	}
 
+	if (r_bloomhdr.value > 0)
+	{
+		pipeline_create_infos_t bloom;
+		
+		// Compute prefilter/downsample/upsample
+		R_CreateComputePipeline (&bloomhdr_compute_pipeline_downfilter, bloomhdr_downfilter_comp_module, 0, NULL, "bloomhdr_downfilter");
+		R_CreateComputePipeline (&bloomhdr_compute_pipeline_down, bloomhdr_down_comp_module, 0, NULL, "bloomhdr_down");
+		R_CreateComputePipeline (&bloomhdr_compute_pipeline_up, bloomhdr_up_comp_module, 0, NULL, "bloomhdr_up");
+		R_CreateComputePipeline (&bloomhdr_compute_pipeline_upfilter, bloomhdr_upfilter_comp_module, 0, NULL, "bloomhdr_upfilter");
+
+		// Fragment composite
+		R_CopyPipelineCreateInfos (&bloom, &base);
+		bloom.multisample_state.rasterizationSamples = VK_SAMPLE_COUNT_1_BIT; // draws onto the resolved scene color
+		bloom.depth_stencil_state.depthTestEnable = VK_FALSE;
+		bloom.depth_stencil_state.depthWriteEnable = VK_FALSE;
+		bloom.blend_attachment_states[0].blendEnable = VK_TRUE;
+		bloom.blend_attachment_states[0].srcColorBlendFactor = VK_BLEND_FACTOR_ONE; // additive blend
+		bloom.blend_attachment_states[0].dstColorBlendFactor = VK_BLEND_FACTOR_ONE;
+		bloom.blend_attachment_states[0].colorBlendOp = VK_BLEND_OP_ADD;
+		bloom.blend_attachment_states[0].colorWriteMask = VK_COLOR_COMPONENT_R_BIT | VK_COLOR_COMPONENT_G_BIT | VK_COLOR_COMPONENT_B_BIT;
+		bloom.shader_stages[1].module = bloomhdr_composite_frag_module;
+		for (int variant = 0; variant < MAIN_RENDER_PASS_VARIANT_COUNT; ++variant)
+		{
+			R_SetPipelineRenderPassVariant (&bloom, SUBPASS_BLOOMHDR_COMPOSITE, variant);
+			R_CreateGraphicsPipeline (&bloomhdr_fragment_pipelines[variant], &bloom, bloomhdr_fragment_layout, "bloomhdr_composite");
+		}
+	}
+
 	if (vid.render_width != vid.width || vid.render_height != vid.height)
 	{
 		pipeline_create_infos_t upscale;
@@ -4253,6 +4327,11 @@ static void R_CreateShaderModules ()
 		ssao_mip_msaa_fp16_comp, r_ssao.value > 0 && vulkan_globals.sample_count != VK_SAMPLE_COUNT_1_BIT && vulkan_globals.shader_float16);
 	CREATE_SHADER_MODULE_COND (ssao_filter_comp, r_ssao.value > 0 && !vulkan_globals.shader_float16);
 	CREATE_SHADER_MODULE_COND (ssao_filter_fp16_comp, r_ssao.value > 0 && vulkan_globals.shader_float16);
+	CREATE_SHADER_MODULE_COND (bloomhdr_downfilter_comp, r_bloomhdr.value > 0);
+	CREATE_SHADER_MODULE_COND (bloomhdr_down_comp, r_bloomhdr.value > 0);
+	CREATE_SHADER_MODULE_COND (bloomhdr_up_comp, r_bloomhdr.value > 0);
+	CREATE_SHADER_MODULE_COND (bloomhdr_upfilter_comp, r_bloomhdr.value > 0);
+	CREATE_SHADER_MODULE_COND (bloomhdr_composite_frag, r_bloomhdr.value > 0);
 	CREATE_SHADER_MODULE (wboit_resolve_frag);
 	CREATE_SHADER_MODULE_COND (wboit_resolve_msaa_frag, vulkan_globals.sample_count != VK_SAMPLE_COUNT_1_BIT);
 	CREATE_SHADER_MODULE (mboit_resolve_frag);
@@ -4342,6 +4421,11 @@ static void R_DestroyShaderModules ()
 	DESTROY_SHADER_MODULE (ssao_mip_msaa_fp16_comp);
 	DESTROY_SHADER_MODULE (ssao_filter_comp);
 	DESTROY_SHADER_MODULE (ssao_filter_fp16_comp);
+	DESTROY_SHADER_MODULE (bloomhdr_downfilter_comp);
+	DESTROY_SHADER_MODULE (bloomhdr_down_comp);
+	DESTROY_SHADER_MODULE (bloomhdr_up_comp);
+	DESTROY_SHADER_MODULE (bloomhdr_upfilter_comp);
+	DESTROY_SHADER_MODULE (bloomhdr_composite_frag);
 	DESTROY_SHADER_MODULE (wboit_resolve_frag);
 	DESTROY_SHADER_MODULE (wboit_resolve_msaa_frag);
 	DESTROY_SHADER_MODULE (mboit_resolve_frag);
@@ -4416,6 +4500,19 @@ void R_DestroyPipelines (void)
 	{
 		vkDestroyPipeline (vulkan_globals.device, ssao_pipelines[variant].handle, NULL);
 		ssao_pipelines[variant].handle = VK_NULL_HANDLE;
+	}
+	vkDestroyPipeline (vulkan_globals.device, bloomhdr_compute_pipeline_downfilter.handle, NULL);
+	bloomhdr_compute_pipeline_downfilter.handle = VK_NULL_HANDLE;
+	vkDestroyPipeline (vulkan_globals.device, bloomhdr_compute_pipeline_down.handle, NULL);
+	bloomhdr_compute_pipeline_down.handle = VK_NULL_HANDLE;
+	vkDestroyPipeline (vulkan_globals.device, bloomhdr_compute_pipeline_up.handle, NULL);
+	bloomhdr_compute_pipeline_up.handle = VK_NULL_HANDLE;
+	vkDestroyPipeline (vulkan_globals.device, bloomhdr_compute_pipeline_upfilter.handle, NULL);
+	bloomhdr_compute_pipeline_upfilter.handle = VK_NULL_HANDLE;
+	for (int variant = 0; variant < MAIN_RENDER_PASS_VARIANT_COUNT; ++variant)
+	{
+		vkDestroyPipeline (vulkan_globals.device, bloomhdr_fragment_pipelines[variant].handle, NULL);
+		bloomhdr_fragment_pipelines[variant].handle = VK_NULL_HANDLE;
 	}
 	while (pipeline_instances)
 	{
@@ -4701,6 +4798,7 @@ void R_Init (void)
 	Cvar_RegisterVariable (&r_indirect);
 	Cvar_RegisterVariable (&r_tasks);
 	R_InitSSAO ();
+	R_InitBloomHDR ();
 	Cvar_RegisterVariable (&r_parallelmark);
 
 	R_InitParticles ();
