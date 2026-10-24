@@ -23,4 +23,6 @@ void main ()
 	out_frag_color = in_color * texture (tex, in_texcoord.xy);
 	if (push_constants.fog_density > 0.0f)
 		out_frag_color.rgb = (out_frag_color.rgb * (1.0f - push_constants.fog_density)) + (push_constants.fog_color * push_constants.fog_density);
+	out_frag_color = max(out_frag_color, vec4(0.0));
+	out_frag_color.w = min (out_frag_color.w, 1.0);
 }

@@ -40,6 +40,7 @@ cvar_t		  r_sky_quality = {"r_sky_quality", "12", CVAR_NONE};
 cvar_t		  r_skyalpha = {"r_skyalpha", "1", CVAR_NONE};
 cvar_t		  r_skyfog = {"r_skyfog", "0.5", CVAR_NONE};
 cvar_t		  r_skywind = {"r_skywind", "1", CVAR_ARCHIVE};
+cvar_t		  r_skycubeboost = {"r_skyboxboost", "0.9", CVAR_ARCHIVE};
 
 static const int skytexorder[6] = {0, 2, 1, 3, 4, 5}; // for skybox
 
@@ -737,6 +738,7 @@ void Sky_Init (void)
 	Cvar_RegisterVariable (&r_skyfog);
 	Cvar_SetCallback (&r_skyfog, R_SetSkyfog_f);
 	Cvar_RegisterVariable (&r_skywind);
+	Cvar_RegisterVariable (&r_skycubeboost);
 
 	Cmd_AddCommand ("sky", Sky_SkyCommand_f);
 	Cmd_AddCommand ("skywind", Skywind_f);
@@ -1279,7 +1281,7 @@ void Sky_DrawSky (cb_context_t *cbx)
 	else
 		memcpy (color, skyflatcolor, 3 * sizeof (float));
 
-	float constant_values[27];
+	float constant_values[28];
 	memcpy (constant_values, vulkan_globals.view_projection_matrix, sizeof (vulkan_globals.view_projection_matrix));
 	constant_values[16] = CLAMP (0.0f, color[0], 1.0f);
 	constant_values[17] = CLAMP (0.0f, color[1], 1.0f);
@@ -1305,7 +1307,9 @@ void Sky_DrawSky (cb_context_t *cbx)
 
 		Skywind_UpdateParams (&constant_values[23], &constant_values[24]);
 
-		R_PushConstants (cbx, VK_SHADER_STAGE_ALL_GRAPHICS, 0, 27 * sizeof (float), constant_values);
+		constant_values[27] = q_max (1.0f, (1-r_skycubeboost.value) + 1.0f);
+
+		R_PushConstants (cbx, VK_SHADER_STAGE_ALL_GRAPHICS, 0, 28 * sizeof (float), constant_values);
 	}
 	else if (!skybox.name[0])
 	{

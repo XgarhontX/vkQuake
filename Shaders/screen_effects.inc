@@ -68,7 +68,7 @@ void main ()
 
 	[[branch]] if ((push_constants.flags & SCREEN_EFFECT_FLAG_PALETTIZE) != 0)
 	{
-		uvec3 search_color = uvec3 (color.rgb * 255.0f);
+		uvec3 search_color = uvec3 (clamp(color.rgb, vec3(0), vec3(1)) * 255.0f);
 		uint  current_node_offset = 0;
 		uint  current_shift = 7;
 		uvec3 node_coords = uvec3 (0u);

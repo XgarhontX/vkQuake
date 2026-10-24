@@ -1293,7 +1293,7 @@ void Sbar_Draw (cb_context_t *cbx)
 		}
 	}
 	// johnfitz
-
+	
 	if (scr_style.value < 2.0f)
 		Sbar_DrawClassic (cbx);
 	else

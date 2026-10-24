@@ -29,6 +29,7 @@ layout (push_constant) uniform PushConsts
 	mat4  mvp;
 	vec3  fog_color;
 	float fog_density;
+	float brightness_ratio_inv;
 }
 push_constants;
 layout (set = 0, binding = 0) uniform texture2D tex;
@@ -194,5 +195,12 @@ void main ()
 	{
 		float fog = exp (-push_constants.fog_density * push_constants.fog_density * in_fog_frag_coord * in_fog_frag_coord);
 		out_frag_color.rgb = mix (push_constants.fog_color, out_frag_color.rgb, clamp (fog, 0.0, 1.0));
+	}
+	
+	if (push_constants.brightness_ratio_inv != 0) 
+	{
+		out_frag_color.rgb = pow(out_frag_color.rgb, vec3(2.2));
+		out_frag_color.rgb *= vec3(1 - push_constants.brightness_ratio_inv);
+		out_frag_color.rgb = pow(out_frag_color.rgb, vec3(1.0/2.2));
 	}
 }
