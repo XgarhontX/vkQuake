@@ -29,6 +29,7 @@ extern cvar_t hdr_shoulder;
 extern cvar_t hdr_peak;
 extern cvar_t hdr_paperscene;
 extern cvar_t hdr_paperui;
+extern cvar_t hdr_gamma;
 
 extern uint8_t v_blend[4];
 

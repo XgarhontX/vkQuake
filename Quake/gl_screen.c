@@ -1601,7 +1601,7 @@ static void SCR_DrawGUI (void *unused)
 
 	SDL_LockMutex (draw_qcvm_mutex);
 
-	// HDR
+	// HDR UI Brightness: apply
 	float brightness_ratio_inv = 1-(hdr_paperui.value / hdr_paperscene.value);
 	R_PushConstants (cbx, VK_SHADER_STAGE_ALL_GRAPHICS, (4*4 + 3 + 1) * sizeof (float), 1 * sizeof (float), &brightness_ratio_inv);
 	
@@ -1646,7 +1646,7 @@ static void SCR_DrawGUI (void *unused)
 		M_Draw (cbx);
 	}
 
-	// HDR
+	// HDR UI Brightness: revert
 	brightness_ratio_inv = 0;
 	R_PushConstants (cbx, VK_SHADER_STAGE_ALL_GRAPHICS, (4*4 + 3 + 1) * sizeof (float), 1 * sizeof (float), &brightness_ratio_inv);
 
