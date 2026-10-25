@@ -43,3 +43,6 @@ helgrind.log
 
 # Visual Studio per-user settings
 *.user
+
+# Rider per-user settings
+Windows/VisualStudio/.idea
