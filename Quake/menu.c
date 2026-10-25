@@ -2089,6 +2089,7 @@ enum
 	GRAPHICS_OPT_SHOULDER,
 	GRAPHICS_OPT_PAPERSCENE,
 	GRAPHICS_OPT_PAPERUI,
+	GRAPHICS_OPT_HDRGAMMA,
 	GRAPHICS_OPT_BLOOM_ENABLED,
 	GRAPHICS_OPT_BLOOM_INTENSITY,
 	GRAPHICS_OPT_BLOOM_THRESHOLD,
@@ -2230,6 +2231,9 @@ static void M_GraphicsOptions_AdjustSliders (int dir, qboolean mouse)
 	case GRAPHICS_OPT_PAPERUI:
 		f = M_GetSliderPos (0, 400, hdr_paperui.value, false, mouse, clamped_mouse, dir, 1, 999);
 		Cvar_SetValue ("hdr_paperui", f);
+		break;
+	case GRAPHICS_OPT_HDRGAMMA:
+		Cvar_SetValueQuick (&hdr_gamma, (float)(((int)hdr_gamma.value + 2 + dir) % 2));
 		break;
 	case GRAPHICS_OPT_BLOOM_ENABLED:
 		Cvar_SetValueQuick (&r_bloomhdr, (float)(((int)r_bloomhdr.value + 2 + dir) % 2));
@@ -2405,6 +2409,11 @@ static void M_GraphicsOptions_Draw (cb_context_t *cbx)
 	r = hdr_peak.value / 1000;
 	M_DrawSlider (cbx, MENU_SLIDER_X, top + CHARACTER_SIZE * GRAPHICS_OPT_PEAK, r, va ("%.0f", hdr_peak.value));
 
+	M_PreviewRow (cbx, GRAPHICS_OPT_SHOULDER, top + CHARACTER_SIZE * GRAPHICS_OPT_SHOULDER);
+	M_Print (cbx, MENU_LABEL_X, top + CHARACTER_SIZE * GRAPHICS_OPT_SHOULDER, "Shoulder Start");
+	r = hdr_shoulder.value;
+	M_DrawSlider (cbx, MENU_SLIDER_X, top + CHARACTER_SIZE * GRAPHICS_OPT_SHOULDER, r, va ("%.2f", hdr_shoulder.value));
+
 	M_PreviewRow (cbx, GRAPHICS_OPT_PAPERSCENE, top + CHARACTER_SIZE * GRAPHICS_OPT_PAPERSCENE);
 	M_Print (cbx, MENU_LABEL_X, top + CHARACTER_SIZE * GRAPHICS_OPT_PAPERSCENE, "Paper White Scene");
 	r = hdr_paperscene.value / 400;
@@ -2415,10 +2424,9 @@ static void M_GraphicsOptions_Draw (cb_context_t *cbx)
 	r = hdr_paperui.value / 400;
 	M_DrawSlider (cbx, MENU_SLIDER_X, top + CHARACTER_SIZE * GRAPHICS_OPT_PAPERUI, r, va ("%.0f", hdr_paperui.value));
 
-	M_PreviewRow (cbx, GRAPHICS_OPT_SHOULDER, top + CHARACTER_SIZE * GRAPHICS_OPT_SHOULDER);
-	M_Print (cbx, MENU_LABEL_X, top + CHARACTER_SIZE * GRAPHICS_OPT_SHOULDER, "Shoulder Start");
-	r = hdr_shoulder.value;
-	M_DrawSlider (cbx, MENU_SLIDER_X, top + CHARACTER_SIZE * GRAPHICS_OPT_SHOULDER, r, va ("%.2f", hdr_shoulder.value));
+	M_PreviewRow (cbx, GRAPHICS_OPT_HDRGAMMA, top + CHARACTER_SIZE * GRAPHICS_OPT_HDRGAMMA);
+	M_Print (cbx, MENU_LABEL_X, top + CHARACTER_SIZE * GRAPHICS_OPT_HDRGAMMA, "Gamma Decode");
+	M_Print (cbx, MENU_VALUE_X, top + CHARACTER_SIZE * GRAPHICS_OPT_HDRGAMMA, (hdr_gamma.value < 1.0f) ? "sRGB" : "2.2");
 
 	M_PreviewRow (cbx, GRAPHICS_OPT_BLOOM_ENABLED, top + CHARACTER_SIZE * GRAPHICS_OPT_BLOOM_ENABLED);
 	M_Print (cbx, MENU_LABEL_X, top + CHARACTER_SIZE * GRAPHICS_OPT_BLOOM_ENABLED, "Bloom");
@@ -2440,7 +2448,7 @@ static void M_GraphicsOptions_Draw (cb_context_t *cbx)
 	M_DrawSlider (cbx, MENU_SLIDER_X, top + CHARACTER_SIZE * GRAPHICS_OPT_FOV, r, va ("%.0f", scr_fov.value));
 
 	M_PreviewRow (cbx, GRAPHICS_OPT_8BIT_COLOR, top + CHARACTER_SIZE * GRAPHICS_OPT_8BIT_COLOR);
-	M_Print (cbx, MENU_LABEL_X, top + CHARACTER_SIZE * GRAPHICS_OPT_8BIT_COLOR, "8-bit Color (SDR)");
+	M_Print (cbx, MENU_LABEL_X, top + CHARACTER_SIZE * GRAPHICS_OPT_8BIT_COLOR, "8-bit Color");
 	M_DrawCheckbox (cbx, MENU_VALUE_X, top + CHARACTER_SIZE * GRAPHICS_OPT_8BIT_COLOR, vid_palettize.value);
 
 	M_PreviewRow (cbx, GRAPHICS_OPT_FILTER, top + CHARACTER_SIZE * GRAPHICS_OPT_FILTER);

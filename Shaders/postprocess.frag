@@ -9,12 +9,21 @@ layout (push_constant) uniform PushConsts
 	float shoulder;
 	float peak;
 	float paperscene;
+	float hdr_gamma;
 }
 push_constants;
 
 layout (input_attachment_index = 0, set = 0, binding = 0) uniform subpassInput color_input;
 
 layout (location = 0) out vec4 out_frag_color;
+
+vec3 sRGBToLinear(vec3 srgb) {
+    return mix(
+        srgb / 12.92, 
+        pow((srgb + 0.055) / 1.055, vec3(2.4)), 
+        greaterThan(srgb, vec3(0.04045))
+    );
+}
 
 void main ()
 {
@@ -26,8 +35,8 @@ void main ()
 	
 	frag = max(frag, vec3(0.0)); // clean
 
-	// frag = frag * push_constants.contrast; // contrast
-	frag = pow(frag, vec3(/* push_constants.gamma * */ 2.2)); // gamma decode
+	if (push_constants.hdr_gamma > 0.5) frag = pow(frag, vec3(2.2));
+	else frag = sRGBToLinear(frag);
 	frag *= vec3(4.0);// exposure makeup
 	
 	// Exponential Rolloff x+\left((p-s)*(1.0-\exp(-\max(0,x-s)/(p-s)))+(-\max(0,x-s))\right)
