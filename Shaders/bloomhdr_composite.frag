@@ -7,10 +7,12 @@ layout (push_constant) uniform PushConsts
 {
 	vec2  src_size;
 	vec2  inv_src_size;
+	vec2  dst_size;
+	vec2  inv_dst_size;
+	float intensity;
+	float threshold;
 	float p0;
 	float p1;
-	float p2;
-	float final_pass;
 }
 push_constants;
 

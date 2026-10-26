@@ -1,7 +1,10 @@
 ﻿// Bloom by pyramid gaussian blur and upsample.
 //
-// Takes in gamma encoded HDR scene (swapchain framebuffer), so first downsample shader needs linearize of taps & also threshold. (Compute)
-// Also needs fullscreen composite bloom (back onto swapchain framebuffer). (Fragment)
+// - Scene in gamma -> DownFilter comp -> linear mip 0
+// - linear mip 0 -> Down comp -> linear mip n
+// - linear mip n -> Up comp -> linear mip 0
+// - linear mip 0 -> UpFilter comp -> Scene delta (gamma space)
+// - Scene delta -> Composite frag -> Bloom + Scene in gamma, which is additively blended
 
 #include "quakedef.h"
 #include "r_bloomhdr.h"
@@ -9,9 +12,10 @@
 cvar_t					 r_bloomhdr = {"r_bloomhdr", "1", CVAR_ARCHIVE};
 cvar_t					 r_bloomhdr_intensity = {"r_bloomhdr_intensity", "1.0", CVAR_ARCHIVE};
 cvar_t					 r_bloomhdr_threshold = {"r_bloomhdr_threshold", "0.8", CVAR_ARCHIVE};
+cvar_t					 r_bloomhdr_mips = {"r_bloomhdr_mips", "7", CVAR_ARCHIVE};
 
-#define BLOOMHDR_MIPS 6 // TODO: dynamic?
-#define BLOOMHDR_INTENSITYFUDGE 0.064
+#define BLOOMHDR_INTENSITYFUDGE ((1.f/effective_mips) * 0.4f)
+#define BLOOMHDR_BUFFERFORMAT VK_FORMAT_B10G11R11_UFLOAT_PACK32
 
 // see gl_misc.c R_CreatePipelineLayouts(), R_DestroyPipelineLayouts(), R_CreatePipelines(), R_DestroyPipelines()
 vulkan_pipeline_layout_t bloomhdr_fragment_layout;
@@ -22,14 +26,17 @@ vulkan_pipeline_t bloomhdr_compute_pipeline_down;
 vulkan_pipeline_t bloomhdr_compute_pipeline_up;
 vulkan_pipeline_t bloomhdr_compute_pipeline_upfilter;
 
-static VkImage working_images[BLOOMHDR_MIPS];
-static VkImageView working_views[BLOOMHDR_MIPS];
-static vulkan_memory_t working_memory[BLOOMHDR_MIPS];
-static VkDescriptorSet working_read[BLOOMHDR_MIPS];
-static VkDescriptorSet working_write[BLOOMHDR_MIPS];
-static uint32_t working_width[BLOOMHDR_MIPS];
-static uint32_t working_height[BLOOMHDR_MIPS];
-static VkSampler sampler;
+static VkImage working_images[BLOOMHDR_MAX_MIPS];
+static VkImageView working_views[BLOOMHDR_MAX_MIPS];
+static vulkan_memory_t working_memory[BLOOMHDR_MAX_MIPS];
+static VkDescriptorSet working_read[BLOOMHDR_MAX_MIPS];
+static VkDescriptorSet working_write[BLOOMHDR_MAX_MIPS];
+static uint32_t working_width[BLOOMHDR_MAX_MIPS]; // resolution
+static uint32_t working_height[BLOOMHDR_MAX_MIPS]; // resolution
+static VkSampler sampler; // main linear sampler
+
+static int effective_mips; // mips calculated for render size
+static float r_bloomhdr_mips_prev; // dirty check for vid_restart
 
 // Full resolution scene delta (gamma space), written by the final upsample and blended by the composite.
 static VkImage delta_image;
@@ -44,19 +51,47 @@ void R_InitBloomHDR (void)
 	Cvar_RegisterVariable (&r_bloomhdr);
 	Cvar_RegisterVariable (&r_bloomhdr_intensity);
 	Cvar_RegisterVariable (&r_bloomhdr_threshold);
+	Cvar_RegisterVariable (&r_bloomhdr_mips);
+	r_bloomhdr_mips_prev = r_bloomhdr_mips.value;
+}
+
+// r_bloomhdr_mips clamped by the minimum, maximum and what the render size can fit
+static int R_BloomHDREffectiveMips (void)
+{
+	int res_x = vid.render_width / 2;
+	int res_y = vid.render_height / 2;
+	int mips = BLOOMHDR_MIN_MIPS;
+	while (res_x > 1 && res_y > 1 && mips < BLOOMHDR_MAX_MIPS && mips < (int)r_bloomhdr_mips.value)
+	{
+		res_x >>= 1;
+		res_y >>= 1;
+		mips++;
+	}
+	return mips;
+}
+
+// see GL_BeginRendering(), this determines vid_restart
+bool R_BloomHDRMipsChanged (void)
+{
+	if (r_bloomhdr.value == 0) return false;
+	bool is_mips_changed = r_bloomhdr_mips_prev != r_bloomhdr_mips.value;
+	r_bloomhdr_mips_prev = r_bloomhdr_mips.value;
+	return is_mips_changed;
 }
 
 void R_CreateBloomHDR (const VkImageView scene_views[NUM_COLOR_BUFFERS])
 {
 	if (r_bloomhdr.value <= 0)
 		return;
-	
+
+	effective_mips = R_BloomHDREffectiveMips ();
+
 	const VkSamplerCreateInfo sampler_info = { // sampler
 		.sType = VK_STRUCTURE_TYPE_SAMPLER_CREATE_INFO,
 		.magFilter = VK_FILTER_LINEAR,
 		.minFilter = VK_FILTER_LINEAR,
 		.mipmapMode = VK_SAMPLER_MIPMAP_MODE_LINEAR,
-		.maxLod = (float)BLOOMHDR_MIPS,
+		.maxLod = (float)effective_mips,
 		.addressModeU = VK_SAMPLER_ADDRESS_MODE_CLAMP_TO_EDGE,
 		.addressModeV = VK_SAMPLER_ADDRESS_MODE_CLAMP_TO_EDGE,
 		.addressModeW = VK_SAMPLER_ADDRESS_MODE_CLAMP_TO_EDGE,
@@ -64,17 +99,18 @@ void R_CreateBloomHDR (const VkImageView scene_views[NUM_COLOR_BUFFERS])
 	if (vkCreateSampler (vulkan_globals.device, &sampler_info, NULL, &sampler) != VK_SUCCESS)
 		Sys_Error ("Couldn't create bloom sampler");
 
-	for (int i = 0; i < BLOOMHDR_MIPS; ++i) // images
+	// images: mip chain/pyramid
+	for (int i = 0; i < effective_mips; ++i) 
 	{
 		const int w = q_max (1, (vid.render_width / 2) >> i);
 		const int h = q_max (1, (vid.render_height / 2) >> i);
 		working_width[i] = w;
 		working_height[i] = h;
 
-		const VkImageCreateInfo image_info = { // info/desc
+		const VkImageCreateInfo image_info = { // info
 			.sType = VK_STRUCTURE_TYPE_IMAGE_CREATE_INFO,
 			.imageType = VK_IMAGE_TYPE_2D,
-			.format = VK_FORMAT_R16G16B16A16_SFLOAT,
+			.format = BLOOMHDR_BUFFERFORMAT,
 			.extent = {w, h, 1},
 			.mipLevels = 1,
 			.arrayLayers = 1,
@@ -124,11 +160,12 @@ void R_CreateBloomHDR (const VkImageView scene_views[NUM_COLOR_BUFFERS])
 		vkUpdateDescriptorSets (vulkan_globals.device, 1, &write, 0, NULL);
 	}
 
+	// images: full resolution scene delta (gamma space) for UpFilter and Composite
 	{
 		const VkImageCreateInfo image_info = {
 			.sType = VK_STRUCTURE_TYPE_IMAGE_CREATE_INFO,
 			.imageType = VK_IMAGE_TYPE_2D,
-			.format = VK_FORMAT_R16G16B16A16_SFLOAT,
+			.format = BLOOMHDR_BUFFERFORMAT,
 			.extent = {vid.render_width, vid.render_height, 1},
 			.mipLevels = 1,
 			.arrayLayers = 1,
@@ -178,7 +215,8 @@ void R_CreateBloomHDR (const VkImageView scene_views[NUM_COLOR_BUFFERS])
 		vkUpdateDescriptorSets (vulkan_globals.device, 1, &write, 0, NULL);
 	}
 
-	for (int i = 0; i < NUM_COLOR_BUFFERS; ++i) // scene color, sampled by the prefilter while in SHADER_READ_ONLY_OPTIMAL
+	// DownFilter's sampler to Scene buffers
+	for (int i = 0; i < NUM_COLOR_BUFFERS; ++i) 
 	{
 		scene_read[i] = R_AllocateDescriptorSet (&vulkan_globals.single_texture_set_layout);
 
@@ -203,7 +241,7 @@ void R_DestroyBloomHDR (void)
 		scene_read[i] = VK_NULL_HANDLE;
 	}
 
-	for (int i = 0; i < BLOOMHDR_MIPS; ++i)
+	for (int i = 0; i < BLOOMHDR_MAX_MIPS; ++i)
 	{
 		if (working_read[i])
 			R_FreeDescriptorSet (working_read[i], &vulkan_globals.single_texture_set_layout);
@@ -235,6 +273,8 @@ void R_DestroyBloomHDR (void)
 
 	vkDestroySampler (vulkan_globals.device, sampler, NULL);
 	sampler = VK_NULL_HANDLE;
+
+	effective_mips = 0;
 }
 
 void R_ComputeBloomHDR (cb_context_t *cbx)
@@ -243,11 +283,11 @@ void R_ComputeBloomHDR (cb_context_t *cbx)
 	
 	if (!r_scene_vrect.width || !r_scene_vrect.height)
 		return;
-
+	
 	const VkCommandBuffer cb = cbx->cb;
-
-	VkImageMemoryBarrier barriers[BLOOMHDR_MIPS + 1];
-	for (int i = 0; i < BLOOMHDR_MIPS + 1; ++i)
+	
+	VkImageMemoryBarrier barriers[BLOOMHDR_MAX_MIPS + 1];
+	for (int i = 0; i < effective_mips + 1; ++i)
 	{
 		barriers[i] = (VkImageMemoryBarrier){
 			.sType = VK_STRUCTURE_TYPE_IMAGE_MEMORY_BARRIER,
@@ -257,16 +297,16 @@ void R_ComputeBloomHDR (cb_context_t *cbx)
 			.newLayout = VK_IMAGE_LAYOUT_GENERAL,
 			.srcQueueFamilyIndex = VK_QUEUE_FAMILY_IGNORED,
 			.dstQueueFamilyIndex = VK_QUEUE_FAMILY_IGNORED,
-			.image = i < BLOOMHDR_MIPS ? working_images[i] : delta_image,
+			.image = i < effective_mips ? working_images[i] : delta_image,
 			.subresourceRange = {VK_IMAGE_ASPECT_COLOR_BIT, 0, 1, 0, 1},
 		};
 	}
 	vulkan_globals.vk_cmd_pipeline_barrier(
-		cb, VK_PIPELINE_STAGE_ALL_COMMANDS_BIT, VK_PIPELINE_STAGE_COMPUTE_SHADER_BIT, 0, 0, NULL, 0, NULL, BLOOMHDR_MIPS + 1, barriers);
-
-	const uint32_t scene_index = R_SceneColorBufferIndex ();
-
-	// Scene color: attachment -> sampled by compute
+		cb, VK_PIPELINE_STAGE_ALL_COMMANDS_BIT, VK_PIPELINE_STAGE_COMPUTE_SHADER_BIT, 0, 0, NULL, 0, NULL, effective_mips + 1, barriers);
+	
+	const uint32_t scene_index = R_SceneColorBufferIndex (); // TODO: this is ugly!!!
+	
+	// Scene color
 	VkImageMemoryBarrier scene_barrier = {
 		.sType = VK_STRUCTURE_TYPE_IMAGE_MEMORY_BARRIER,
 		.srcAccessMask = VK_ACCESS_COLOR_ATTACHMENT_WRITE_BIT,
@@ -287,7 +327,6 @@ void R_ComputeBloomHDR (cb_context_t *cbx)
 		.dstAccessMask = VK_ACCESS_SHADER_READ_BIT | VK_ACCESS_SHADER_WRITE_BIT,
 	};
 
-	// Dispatches one pass; src is the sampled source, dst_set is the storage destination of size dst_w x dst_h.
 	#define BLOOM_PASS(pipeline, src_set, src_w, src_h, dst_set, dst_w, dst_h)                                                                          \
 		do                                                                                                                                              \
 		{                                                                                                                                               \
@@ -297,7 +336,9 @@ void R_ComputeBloomHDR (cb_context_t *cbx)
 			const bloomhdr_constants_t constants = {                                                                                                    \
 				.src_size = {(float)(src_w), (float)(src_h)},                                                                                           \
 				.inv_src_size = {1.f / (float)(src_w), 1.f / (float)(src_h)},                                                                           \
-				.intensity = r_bloomhdr_intensity.value * BLOOMHDR_INTENSITYFUDGE,                                                                                                \
+				.dst_size = {(float)(dst_w), (float)(dst_h)},                                                                                           \
+				.inv_dst_size = {1.f / (float)(dst_w), 1.f / (float)(dst_h)},                                                                           \
+				.intensity = r_bloomhdr_intensity.value * BLOOMHDR_INTENSITYFUDGE,                                                                      \
 				.threshold = r_bloomhdr_threshold.value,                                                                                                \
 			};                                                                                                                                          \
 			vulkan_globals.vk_cmd_push_constants (cb, bloomhdr_compute_layout.handle, VK_SHADER_STAGE_COMPUTE_BIT, 0, sizeof (constants), &constants);  \
@@ -306,18 +347,18 @@ void R_ComputeBloomHDR (cb_context_t *cbx)
 				cb, VK_PIPELINE_STAGE_COMPUTE_SHADER_BIT, VK_PIPELINE_STAGE_COMPUTE_SHADER_BIT, 0, 1, &memory_barrier, 0, NULL, 0, NULL);               \
 		} while (0)
 
-	// Prefilter: scene -> mip 0
+	// DownFilter
 	BLOOM_PASS (bloomhdr_compute_pipeline_downfilter, scene_read[scene_index], vid.render_width, vid.render_height, working_write[0], working_width[0], working_height[0]);
 
-	// Downsample: mip i-1 -> mip i
-	for (int i = 1; i < BLOOMHDR_MIPS; ++i)
+	// Down
+	for (int i = 1; i < effective_mips; ++i)
 		BLOOM_PASS (bloomhdr_compute_pipeline_down, working_read[i - 1], working_width[i - 1], working_height[i - 1], working_write[i], working_width[i], working_height[i]);
 
-	// Upsample: mip i+1 accumulated into mip i
-	for (int i = BLOOMHDR_MIPS - 2; i >= 0; --i)
+	// Up
+	for (int i = effective_mips - 2; i >= 0; --i)
 		BLOOM_PASS (bloomhdr_compute_pipeline_up, working_read[i + 1], working_width[i + 1], working_height[i + 1], working_write[i], working_width[i], working_height[i]);
 
-	// Final: mip 0 upsampled to full resolution, combined with the exact scene texel into the delta image
+	// UpFilter
 	BLOOM_PASS (bloomhdr_compute_pipeline_upfilter, working_read[0], working_width[0], working_height[0], delta_write, vid.render_width, vid.render_height);
 	#undef BLOOM_PASS
 
@@ -339,6 +380,7 @@ void R_DrawBloomHDRTask (void *unused)
 	if (!r_scene_vrect.width || !r_scene_vrect.height)
 		return;
 
+	// TODO: Either this is stupid, or absolute big brain. composite utilizes blend for addition in gamma space.
 	cb_context_t  *cbx = vulkan_globals.secondary_cb_contexts[SCBX_BLOOMHDR_COMPOSITE];
 	const VkRect2D rect = {{r_scene_vrect.x, r_scene_vrect.y}, {r_scene_vrect.width, r_scene_vrect.height}};
 	const VkViewport viewport = {rect.offset.x, rect.offset.y, rect.extent.width, rect.extent.height, 0, 1};
