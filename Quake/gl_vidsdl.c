@@ -3211,11 +3211,12 @@ qboolean GL_BeginRendering (qboolean use_tasks, task_handle_t *begin_rendering_t
 	const qboolean	 oit_mode_changed = (requested_oit_mode != frame_oit_mode);
 	frame_oit_mode = requested_oit_mode;
 	const qboolean render_pass_setup_changed = R_SetupRenderPasses ();
+	const qboolean bloom_setup_changed = R_BloomHDRMipsChanged ();
 
 	int render_width, render_height;
 	VID_GetRenderSize (&render_width, &render_height);
 	const qboolean render_size_changed = render_width != vid.render_width || render_height != vid.render_height;
-	if (vid.restart_next_frame || (render_resources_created && (oit_mode_changed || render_pass_setup_changed || render_size_changed)))
+	if (vid.restart_next_frame || (render_resources_created && (oit_mode_changed || render_pass_setup_changed || render_size_changed || bloom_setup_changed)))
 	{
 		VID_Restart (false);
 		vid.restart_next_frame = false;

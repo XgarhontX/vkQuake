@@ -3,14 +3,14 @@
 #extension GL_ARB_shading_language_420pack : enable
 #extension GL_GOOGLE_include_directive : enable
 
-// https://learnopengl.com/Guest-Articles/2022/Phys.-Based-Bloom
-
 layout (local_size_x = 8, local_size_y = 8, local_size_z = 1) in;
 
 layout (push_constant) uniform PushConsts
 {
 	vec2  src_size;
 	vec2  inv_src_size;
+	vec2  dst_size;
+	vec2  inv_dst_size;
 	float intensity;
 	float threshold;
 	float p0;
@@ -25,16 +25,15 @@ layout (set = 2, binding = 0) uniform sampler2D scene_texture;
 const float GAMMA = 2.2;
 const float EXPOSURE = 4.0; // must match the exposure makeup in postprocess.frag
 
-// Luma Color.hlsl
 void main ()
 {
-	const ivec2 dst_size = imageSize (dst_image);
 	const ivec2 id = ivec2 (gl_GlobalInvocationID.xy);
-	if (id.x >= dst_size.x || id.y >= dst_size.y)
+	if (id.x >= push_constants.dst_size.x || id.y >= push_constants.dst_size.y)
 		return;
 
+	// Luma Color.hlsl 4tap
 	// transform the coordinate from [0,extent] to [-0.5, extent-0.5]
-	vec2 texcoord = (vec2(id) + 0.5) / vec2(dst_size);
+	vec2 texcoord = (vec2(id) + 0.5) * push_constants.inv_dst_size;
 	vec2 coord_grid = texcoord * push_constants.src_size - 0.5;
 	vec2 index = floor(coord_grid);
 	vec2 fraction = coord_grid - index;
@@ -64,6 +63,30 @@ void main ()
 
 	// weigh along the x-direction
 	vec3 up = mix (tex10, tex00, vec3( g0.x));
+
+	// // https://www.froyok.fr/blog/2021-12-ue4-custom-bloom/ 9tap
+	// const vec2 Coords[9] = {
+	// 	vec2( -1.0f,  1.0f ), vec2(  0.0f,  1.0f ), vec2(  1.0f,  1.0f ),
+	// 	vec2( -1.0f,  0.0f ), vec2(  0.0f,  0.0f ), vec2(  1.0f,  0.0f ),
+	// 	vec2( -1.0f, -1.0f ), vec2(  0.0f, -1.0f ), vec2(  1.0f, -1.0f )
+	// };
+	// 
+	// const float Weights[9] = {
+	// 	0.0625f, 0.125f, 0.0625f,
+	// 	0.125f,  0.25f,  0.125f,
+	// 	0.0625f, 0.125f, 0.0625f
+	// };
+	// 
+	// vec3 Color = vec3( 0.0f, 0.0f, 0.0f );
+	// 
+	// vec2 UV = vec2(id) / vec2(dst_size);
+	// vec2 PixelSize = 1.0 / vec2(dst_size);
+	// for( int i = 0; i < 9; i++ )
+	// {
+	// 	vec2 CurrentUV = UV + Coords[i] * PixelSize;
+	// 	Color += Weights[i] * textureLod(scene_texture, CurrentUV, 0.0).rgb;
+	// }
+	// vec3 up = Color;
 
 	vec3 bloom = imageLoad (dst_image, id).rgb + up; // accumulate
 	imageStore (dst_image, id, vec4 (bloom, 0.0));

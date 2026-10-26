@@ -787,7 +787,7 @@ uint32_t R_RecordFrame (
 	VkCommandBuffer					 command_buffer = vulkan_globals.primary_cb_contexts[PCBX_RENDER_PASSES].cb;
 	const bool	 screen_effects = parms->render_warp || parms->vid_palettize || (parms->polyblend && parms->v_blend[3]) || parms->menu || parms->ray_debug;
 	const bool	 msaa = current_layout.samples != VK_SAMPLE_COUNT_1_BIT;
-	scene_color_index = screen_effects ? 1 : 0;
+	scene_color_index = screen_effects ? 1 : 0; // this is ugly!
 	VkClearValue clear_values[MAX_PASS_ATTACHMENTS] = {0};
 	clear_values[0] = parms->color_clear_value;
 	if (msaa)
