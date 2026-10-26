@@ -9,7 +9,7 @@ layout (push_constant) uniform PushConsts
 	float shoulder;
 	float peak;
 	float paperscene;
-	float hdr_gamma;
+	float hdr_enabled;
 }
 push_constants;
 
@@ -18,11 +18,18 @@ layout (input_attachment_index = 0, set = 0, binding = 0) uniform subpassInput c
 layout (location = 0) out vec4 out_frag_color;
 
 vec3 sRGBToLinear(vec3 srgb) {
-    return mix(
-        srgb / 12.92, 
-        pow((srgb + 0.055) / 1.055, vec3(2.4)), 
-        greaterThan(srgb, vec3(0.04045))
-    );
+	return mix(
+		srgb / 12.92, 
+		pow((srgb + 0.055) / 1.055, vec3(2.4)), 
+		greaterThan(srgb, vec3(0.04045))
+	);
+}
+vec3 LinearTosRGB(vec3 linear) {
+	return mix(
+		linear * 12.92,
+		1.055 * pow(linear, vec3(1.0 / 2.4)) - 0.055,
+		greaterThan(linear, vec3(0.0031308))
+	);
 }
 
 void main ()
@@ -32,12 +39,22 @@ void main ()
 	// out_frag_color = vec4 (pow (frag, vec3 (push_constants.gamma)), 1.0);
 
 	vec3 frag = subpassLoad (color_input).rgb;
-	
 	frag = max(frag, vec3(0.0)); // clean
 
-	if (push_constants.hdr_gamma > 0.5) frag = pow(frag, vec3(2.2));
-	else frag = sRGBToLinear(frag);
-	frag *= vec3(4.0);// exposure makeup
+	// gamma
+	if (push_constants.hdr_enabled > 0.0)
+	{
+		// linearize, then gamma correct upwards
+		frag = pow(frag, vec3(1/2.2)); 
+		frag = sRGBToLinear(frag); 
+		frag = pow(frag, vec3(2.2));
+	} else {
+		// linearize sRGB, which SDR mismatch will lower
+		frag = sRGBToLinear(frag);
+	}
+
+	// exposure makeup for goofy contrast curves
+	frag *= vec3(4.0); 
 	
 	// Exponential Rolloff x+\left((p-s)*(1.0-\exp(-\max(0,x-s)/(p-s)))+(-\max(0,x-s))\right)
 	if (push_constants.peak > 0) 
