@@ -25,11 +25,11 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 
 // extern cvar_t vid_gamma;
 // extern cvar_t vid_contrast;
+extern cvar_t hdr_enabled;
 extern cvar_t hdr_shoulder;
 extern cvar_t hdr_peak;
 extern cvar_t hdr_paperscene;
 extern cvar_t hdr_paperui;
-extern cvar_t hdr_gamma;
 
 extern uint8_t v_blend[4];
 

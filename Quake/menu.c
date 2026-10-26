@@ -2085,11 +2085,11 @@ enum
 {
 	// GRAPHICS_OPT_GAMMA,
 	// GRAPHICS_OPT_CONTRAST,
-	GRAPHICS_OPT_PEAK,
+	GRAPHICS_OPT_HDR_ENABLED,
+	GRAPHICS_OPT_HDR_PEAK,
+	GRAPHICS_OPT_HDR_PAPER_SCENE,
+	GRAPHICS_OPT_HDR_PAPER_UI,
 	GRAPHICS_OPT_SHOULDER,
-	GRAPHICS_OPT_PAPERSCENE,
-	GRAPHICS_OPT_PAPERUI,
-	GRAPHICS_OPT_HDRGAMMA,
 	GRAPHICS_OPT_BLOOM_ENABLED,
 	GRAPHICS_OPT_BLOOM_INTENSITY,
 	GRAPHICS_OPT_BLOOM_THRESHOLD,
@@ -2217,24 +2217,24 @@ static void M_GraphicsOptions_AdjustSliders (int dir, qboolean mouse)
 	// 	f = M_GetSliderPos (1, 2, vid_contrast.value, false, mouse, clamped_mouse, dir, 0.05, 999);
 	// 	Cvar_SetValue ("contrast", f);
 	// 	break;
-	case GRAPHICS_OPT_PEAK:
+	case GRAPHICS_OPT_HDR_ENABLED:
+		Cvar_SetValueQuick (&hdr_enabled, (float)(((int)hdr_enabled.value + 2 + dir) % 2));
+		break;
+	case GRAPHICS_OPT_HDR_PEAK:
 		f = M_GetSliderPos (0, 1000, hdr_peak.value, false, mouse, clamped_mouse, dir, 1, 999);
 		Cvar_SetValue ("hdr_peak", f);
+		break;
+	case GRAPHICS_OPT_HDR_PAPER_SCENE:
+		f = M_GetSliderPos (0, 400, hdr_paperscene.value, false, mouse, clamped_mouse, dir, 1, 999);
+		Cvar_SetValue ("hdr_paperscene", f);
+		break;
+	case GRAPHICS_OPT_HDR_PAPER_UI:
+		f = M_GetSliderPos (0, 400, hdr_paperui.value, false, mouse, clamped_mouse, dir, 1, 999);
+		Cvar_SetValue ("hdr_paperui", f);
 		break;
 	case GRAPHICS_OPT_SHOULDER:
 		f = M_GetSliderPos (0, 1, hdr_shoulder.value, false, mouse, clamped_mouse, dir, 0.01, 999);
 		Cvar_SetValue ("hdr_shoulder", f);
-		break;
-	case GRAPHICS_OPT_PAPERSCENE:
-		f = M_GetSliderPos (0, 400, hdr_paperscene.value, false, mouse, clamped_mouse, dir, 1, 999);
-		Cvar_SetValue ("hdr_paperscene", f);
-		break;
-	case GRAPHICS_OPT_PAPERUI:
-		f = M_GetSliderPos (0, 400, hdr_paperui.value, false, mouse, clamped_mouse, dir, 1, 999);
-		Cvar_SetValue ("hdr_paperui", f);
-		break;
-	case GRAPHICS_OPT_HDRGAMMA:
-		Cvar_SetValueQuick (&hdr_gamma, (float)(((int)hdr_gamma.value + 2 + dir) % 2));
 		break;
 	case GRAPHICS_OPT_BLOOM_ENABLED:
 		Cvar_SetValueQuick (&r_bloomhdr, (float)(((int)r_bloomhdr.value + 2 + dir) % 2));
@@ -2408,29 +2408,29 @@ static void M_GraphicsOptions_Draw (cb_context_t *cbx)
 	// r = vid_contrast.value - 1.0;
 	// M_DrawSlider (cbx, MENU_SLIDER_X, top + CHARACTER_SIZE * GRAPHICS_OPT_CONTRAST, r, va ("%.2f", vid_contrast.value));
 
-	M_PreviewRow (cbx, GRAPHICS_OPT_PEAK, top + CHARACTER_SIZE * GRAPHICS_OPT_PEAK);
-	M_Print (cbx, MENU_LABEL_X, top + CHARACTER_SIZE * GRAPHICS_OPT_PEAK, "Peak Brightness");
+	M_PreviewRow (cbx, GRAPHICS_OPT_HDR_ENABLED, top + CHARACTER_SIZE * GRAPHICS_OPT_HDR_ENABLED);
+	M_Print (cbx, MENU_LABEL_X, top + CHARACTER_SIZE * GRAPHICS_OPT_HDR_ENABLED, "HDR");
+	M_DrawCheckbox (cbx, MENU_VALUE_X, top + CHARACTER_SIZE * GRAPHICS_OPT_HDR_ENABLED, hdr_enabled.value);
+
+	M_PreviewRow (cbx, GRAPHICS_OPT_HDR_PEAK, top + CHARACTER_SIZE * GRAPHICS_OPT_HDR_PEAK);
+	M_Print (cbx, MENU_LABEL_X, top + CHARACTER_SIZE * GRAPHICS_OPT_HDR_PEAK, "Peak Brightness");
 	r = hdr_peak.value / 1000;
-	M_DrawSlider (cbx, MENU_SLIDER_X, top + CHARACTER_SIZE * GRAPHICS_OPT_PEAK, r, va ("%.0f", hdr_peak.value));
+	M_DrawSlider (cbx, MENU_SLIDER_X, top + CHARACTER_SIZE * GRAPHICS_OPT_HDR_PEAK, r, va ("%.0f", hdr_peak.value));
+
+	M_PreviewRow (cbx, GRAPHICS_OPT_HDR_PAPER_SCENE, top + CHARACTER_SIZE * GRAPHICS_OPT_HDR_PAPER_SCENE);
+	M_Print (cbx, MENU_LABEL_X, top + CHARACTER_SIZE * GRAPHICS_OPT_HDR_PAPER_SCENE, "Paper White Scene");
+	r = hdr_paperscene.value / 400;
+	M_DrawSlider (cbx, MENU_SLIDER_X, top + CHARACTER_SIZE * GRAPHICS_OPT_HDR_PAPER_SCENE, r, va ("%.0f", hdr_paperscene.value));
+
+	M_PreviewRow (cbx, GRAPHICS_OPT_HDR_PAPER_UI, top + CHARACTER_SIZE * GRAPHICS_OPT_HDR_PAPER_UI);
+	M_Print (cbx, MENU_LABEL_X, top + CHARACTER_SIZE * GRAPHICS_OPT_HDR_PAPER_UI, "Paper White UI");
+	r = hdr_paperui.value / 400;
+	M_DrawSlider (cbx, MENU_SLIDER_X, top + CHARACTER_SIZE * GRAPHICS_OPT_HDR_PAPER_UI, r, va ("%.0f", hdr_paperui.value));
 
 	M_PreviewRow (cbx, GRAPHICS_OPT_SHOULDER, top + CHARACTER_SIZE * GRAPHICS_OPT_SHOULDER);
 	M_Print (cbx, MENU_LABEL_X, top + CHARACTER_SIZE * GRAPHICS_OPT_SHOULDER, "Shoulder Start");
 	r = hdr_shoulder.value;
 	M_DrawSlider (cbx, MENU_SLIDER_X, top + CHARACTER_SIZE * GRAPHICS_OPT_SHOULDER, r, va ("%.2f", hdr_shoulder.value));
-
-	M_PreviewRow (cbx, GRAPHICS_OPT_PAPERSCENE, top + CHARACTER_SIZE * GRAPHICS_OPT_PAPERSCENE);
-	M_Print (cbx, MENU_LABEL_X, top + CHARACTER_SIZE * GRAPHICS_OPT_PAPERSCENE, "Paper White Scene");
-	r = hdr_paperscene.value / 400;
-	M_DrawSlider (cbx, MENU_SLIDER_X, top + CHARACTER_SIZE * GRAPHICS_OPT_PAPERSCENE, r, va ("%.0f", hdr_paperscene.value));
-
-	M_PreviewRow (cbx, GRAPHICS_OPT_PAPERUI, top + CHARACTER_SIZE * GRAPHICS_OPT_PAPERUI);
-	M_Print (cbx, MENU_LABEL_X, top + CHARACTER_SIZE * GRAPHICS_OPT_PAPERUI, "Paper White UI");
-	r = hdr_paperui.value / 400;
-	M_DrawSlider (cbx, MENU_SLIDER_X, top + CHARACTER_SIZE * GRAPHICS_OPT_PAPERUI, r, va ("%.0f", hdr_paperui.value));
-
-	M_PreviewRow (cbx, GRAPHICS_OPT_HDRGAMMA, top + CHARACTER_SIZE * GRAPHICS_OPT_HDRGAMMA);
-	M_Print (cbx, MENU_LABEL_X, top + CHARACTER_SIZE * GRAPHICS_OPT_HDRGAMMA, "Gamma Decode");
-	M_Print (cbx, MENU_VALUE_X, top + CHARACTER_SIZE * GRAPHICS_OPT_HDRGAMMA, (hdr_gamma.value < 1.0f) ? "sRGB" : "2.2");
 
 	M_PreviewRow (cbx, GRAPHICS_OPT_BLOOM_ENABLED, top + CHARACTER_SIZE * GRAPHICS_OPT_BLOOM_ENABLED);
 	M_Print (cbx, MENU_LABEL_X, top + CHARACTER_SIZE * GRAPHICS_OPT_BLOOM_ENABLED, "Bloom");
@@ -5492,7 +5492,7 @@ void M_UpdateMouse (void)
 	}
 	else if (slider_grab)
 	{
-		const bool graphic_option_has_sliders = ((graphics_options_cursor >= /*GRAPHICS_OPT_GAMMA*/GRAPHICS_OPT_PEAK) && (graphics_options_cursor <= GRAPHICS_OPT_FOV)) ||
+		const bool graphic_option_has_sliders = ((graphics_options_cursor >= /*GRAPHICS_OPT_GAMMA*/GRAPHICS_OPT_HDR_PEAK) && (graphics_options_cursor <= GRAPHICS_OPT_FOV)) ||
 												(graphics_options_cursor == GRAPHICS_OPT_MAX_FPS);
 
 		const bool game_option_has_sliders = ((game_options_cursor >= GAME_OPT_SCALE) && (game_options_cursor <= GAME_OPT_VIEWROLL)) ||

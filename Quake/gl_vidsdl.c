@@ -122,11 +122,11 @@ cvar_t		  vid_fsaa = {"vid_fsaa", "4", CVAR_ARCHIVE};
 cvar_t		  vid_fsaamode = {"vid_fsaamode", "0", CVAR_ARCHIVE};
 // cvar_t		  vid_gamma = {"gamma", "1.0", CVAR_ARCHIVE};		// johnfitz -- moved here from view.c
 // cvar_t		  vid_contrast = {"contrast", "1.0", CVAR_ARCHIVE}; // QuakeSpasm, MarkV
+cvar_t		  hdr_enabled = {"hdr_enabled", "0", CVAR_ARCHIVE}; // HDR
 cvar_t		  hdr_shoulder = {"hdr_shoulder", "0.18", CVAR_ARCHIVE}; // HDR
 cvar_t		  hdr_peak = {"hdr_peak", "400", CVAR_ARCHIVE}; // HDR
 cvar_t		  hdr_paperscene = {"hdr_paperscene", "250", CVAR_ARCHIVE}; // HDR
 cvar_t		  hdr_paperui = {"hdr_paperui", "40", CVAR_ARCHIVE}; // HDR
-cvar_t		  hdr_gamma = {"hdr_gamma", "1", CVAR_ARCHIVE}; // HDR (sRGB or 2.2) // TODO: this should be removed. if SDR, use sRGB, else 2.2 for exact linearization
 #if defined(_DEBUG)
 static cvar_t r_raydebug = {"r_raydebug", "0", 0};
 #endif
@@ -276,7 +276,6 @@ static void VID_Gamma_Init (void)
 	Cvar_RegisterVariable (&hdr_peak);
 	Cvar_RegisterVariable (&hdr_paperscene);
 	Cvar_RegisterVariable (&hdr_paperui);
-	Cvar_RegisterVariable (&hdr_gamma);
 }
 
 /*
@@ -2619,6 +2618,7 @@ static qboolean GL_CreateSwapChain (void)
 	if (err != VK_SUCCESS)
 		Sys_Error ("fpGetPhysicalDeviceSurfaceFormatsKHR failed with code %i", (int)err);
 
+	// sRGB SDR
 	// VkFormat		swap_chain_format = VK_FORMAT_B8G8R8A8_UNORM;
 	// VkColorSpaceKHR swap_chain_color_space = VK_COLOR_SPACE_SRGB_NONLINEAR_KHR;
 	//
@@ -2642,6 +2642,8 @@ static qboolean GL_CreateSwapChain (void)
 	// 		swap_chain_color_space = surface_formats[0].colorSpace;
 	// 	}
 	// }
+
+	// scRGB HDR
 	VkFormat		swap_chain_format = VK_FORMAT_R16G16B16A16_SFLOAT;
 	VkColorSpaceKHR swap_chain_color_space = VK_COLOR_SPACE_EXTENDED_SRGB_LINEAR_EXT;
 	
@@ -3511,9 +3513,9 @@ static void GL_EndRenderingTask (end_rendering_parms_t *parms)
 			// vid_gamma.value,
 			// q_min (2.0f, q_max (1.0f, vid_contrast.value)),
 			q_min (0.999f, q_max (0.0f, hdr_shoulder.value)),
-			q_max (0.f, hdr_peak.value),
-			q_max (1.f, hdr_paperscene.value),
-			hdr_gamma.value, // bool
+			hdr_enabled.value ? q_max (0.f, hdr_peak.value) : 80.f,
+			hdr_enabled.value ? q_max (1.f, hdr_paperscene.value) : 80.f / 4.f,
+			hdr_enabled.value, // 0: sRGB, 1: 2.2
 		};
 		
 		R_BindPipeline (cbx, VK_PIPELINE_BIND_POINT_GRAPHICS, vulkan_globals.postprocess_pipeline);
@@ -4020,6 +4022,7 @@ void VID_Init (void)
 #if defined(_DEBUG)
 	Cvar_RegisterVariable (&r_raydebug);
 #endif
+	Cvar_RegisterVariable (&hdr_enabled);
 	Cvar_SetCallback (&vid_fullscreen, VID_Changed_f);
 	Cvar_SetCallback (&vid_width, VID_Changed_f);
 	Cvar_SetCallback (&vid_height, VID_Changed_f);
