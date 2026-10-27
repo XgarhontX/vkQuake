@@ -31,6 +31,8 @@ extern cvar_t tonemap_toe;
 extern cvar_t hdr_peak;
 extern cvar_t hdr_paperscene;
 extern cvar_t hdr_paperui;
+extern cvar_t sdr_paperscene;
+extern cvar_t sdr_paperui;
 
 extern uint8_t v_blend[4];
 

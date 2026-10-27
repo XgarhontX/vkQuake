@@ -2505,6 +2505,7 @@ enum
 	HDR_OPT_BLOOM_THRESHOLD,
 	HDR_OPT_BLOOM_MIPS,
 	HDR_OPT_BLOOM_PRESET_DEFAULT,
+	HDR_OPT_BLOOM_PRESET_HIGHTHRES,
 	HDR_OPT_BLOOM_PRESET_SOFT,
 	HDR_OPTIONS_ITEMS,
 };
@@ -2537,18 +2538,20 @@ static void M_HDROptions_AdjustSliders (int dir, qboolean mouse)
 		Cvar_SetValueQuick (&hdr_enabled, (float)(((int)hdr_enabled.value + 2 + dir) % 2));
 		break;
 	case HDR_OPT_PEAK:
-		f = M_GetSliderPos (0, 1000, hdr_peak.value, false, mouse, clamped_mouse, dir, 1, 999);
+		if (!hdr_enabled.value) return;
+		f = M_GetSliderPos (1, 1000, hdr_peak.value, false, mouse, clamped_mouse, dir, 1, 1);
 		Cvar_SetValue ("hdr_peak", f);
 		break;
 	case HDR_OPT_PAPER_SCENE:
-		f = M_GetSliderPos (0, 400, hdr_paperscene.value, false, mouse, clamped_mouse, dir, 1, 999);
-		Cvar_SetValue ("hdr_paperscene", f);
+		f = M_GetSliderPos (1, hdr_enabled.value ? 400 : 80, hdr_enabled.value ? hdr_paperscene.value : sdr_paperscene.value, false, mouse, clamped_mouse, dir, 1, 1);
+		Cvar_SetValue (hdr_enabled.value ? "hdr_paperscene" : "sdr_paperscene", f);
 		break;
 	case HDR_OPT_PAPER_UI:
-		f = M_GetSliderPos (0, 400, hdr_paperui.value, false, mouse, clamped_mouse, dir, 1, 999);
-		Cvar_SetValue ("hdr_paperui", f);
+		f = M_GetSliderPos (1, hdr_enabled.value ? 400 : 80, hdr_enabled.value ? hdr_paperui.value : sdr_paperscene.value, false, mouse, clamped_mouse, dir, 1, 1);
+		Cvar_SetValue (hdr_enabled.value ? "hdr_paperui" : "sdr_paperui", f);
 		break;
 	case HDR_OPT_PRESET_SAFE400:
+		if (!hdr_enabled.value) return;
 		Cvar_SetValueQuick (&tonemap_shoulder, strtof (tonemap_shoulder.default_string, NULL));
 		Cvar_SetValueQuick (&tonemap_toe, strtof (tonemap_toe.default_string, NULL));
 		Cvar_SetValueQuick (&hdr_paperscene, strtof (hdr_paperscene.default_string, NULL));
@@ -2556,6 +2559,7 @@ static void M_HDROptions_AdjustSliders (int dir, qboolean mouse)
 		Cvar_SetValueQuick (&r_skycubeboost, strtof (r_skycubeboost.default_string, NULL));
 		break;
 	case HDR_OPT_PRESET_1000:
+		if (!hdr_enabled.value) return;
 		Cvar_SetValueQuick (&tonemap_shoulder, strtof (tonemap_shoulder.default_string, NULL));
 		Cvar_SetValueQuick (&tonemap_toe, 1.0f);
 		Cvar_SetValueQuick (&hdr_paperscene, 350.f);
@@ -2563,6 +2567,7 @@ static void M_HDROptions_AdjustSliders (int dir, qboolean mouse)
 		Cvar_SetValueQuick (&r_skycubeboost, 0.98f);
 		break;
 	case HDR_OPT_PRESET_SDRONHDR:
+		if (!hdr_enabled.value) return;
 		Cvar_SetValueQuick (&tonemap_shoulder, strtof (tonemap_shoulder.default_string, NULL));
 		Cvar_SetValueQuick (&tonemap_toe, strtof (tonemap_toe.default_string, NULL));
 		Cvar_SetValueQuick (&hdr_paperscene, 400.f);
@@ -2570,30 +2575,30 @@ static void M_HDROptions_AdjustSliders (int dir, qboolean mouse)
 		Cvar_SetValueQuick (&r_skycubeboost, strtof (r_skycubeboost.default_string, NULL));
 		break;
 	case HDR_OPT_SHOULDER:
-		f = M_GetSliderPos (0, 1, tonemap_shoulder.value, false, mouse, clamped_mouse, dir, 0.01f, 999);
+		f = M_GetSliderPos (0.01f, 0.95f, tonemap_shoulder.value, false, mouse, clamped_mouse, dir, 0.01f, 0.01f);
 		Cvar_SetValue ("tonemap_shoulder", f);
 		break;
 	case HDR_OPT_TOE:
-		f = M_GetSliderPos (0.5f, 1.5f, tonemap_toe.value, false, mouse, clamped_mouse, dir, 0.01f, 999);
+		f = M_GetSliderPos (0.5f, 1.5f, tonemap_toe.value, false, mouse, clamped_mouse, dir, 0.01f, 0.01f);
 		Cvar_SetValue ("tonemap_toe", f);
 		break;
 	case HDR_OPT_SKYBOXBOOST:
-		f = M_GetSliderPos (0.9f, 1, r_skycubeboost.value, false, mouse, clamped_mouse, dir, 0.01f, 999);
+		f = M_GetSliderPos (0.9f, 1, r_skycubeboost.value, false, mouse, clamped_mouse, dir, 0.01f, 0.01f);
 		Cvar_SetValue ("r_skycubeboost", f);
 		break;
 	case HDR_OPT_BLOOM_ENABLED:
 		Cvar_SetValueQuick (&r_bloomhdr, (float)(((int)r_bloomhdr.value + 2 + dir) % 2));
 		break;
 	case HDR_OPT_BLOOM_INTENSITY:
-		f = M_GetSliderPos (0, 3, r_bloomhdr_intensity.value, false, mouse, clamped_mouse, dir, 0.1f, 999);
+		f = M_GetSliderPos (0, 3, r_bloomhdr_intensity.value, false, mouse, clamped_mouse, dir, 0.01f, 0.01f);
 		Cvar_SetValue ("r_bloomhdr_intensity", f);
 		break;
 	case HDR_OPT_BLOOM_THRESHOLD:
-		f = M_GetSliderPos (0, 3, r_bloomhdr_threshold.value, false, mouse, clamped_mouse, dir, 0.1f, 999);
+		f = M_GetSliderPos (0, 3, r_bloomhdr_threshold.value, false, mouse, clamped_mouse, dir, 0.01f, 0.01f);
 		Cvar_SetValue ("r_bloomhdr_threshold", f);
 		break;
 	case HDR_OPT_BLOOM_MIPS:
-		f = M_GetSliderPos (BLOOMHDR_MIN_MIPS, BLOOMHDR_MAX_MIPS, r_bloomhdr_mips.value, false, mouse, clamped_mouse, dir, 1, 999);
+		f = M_GetSliderPos (BLOOMHDR_MIN_MIPS, BLOOMHDR_MAX_MIPS, r_bloomhdr_mips.value, false, mouse, clamped_mouse, dir, 1, 1);
 		Cvar_SetValue ("r_bloomhdr_mips", f);
 		break;
 	case HDR_OPT_BLOOM_PRESET_DEFAULT:
@@ -2601,8 +2606,13 @@ static void M_HDROptions_AdjustSliders (int dir, qboolean mouse)
 		Cvar_SetValueQuick (&r_bloomhdr_threshold, strtof (r_bloomhdr_threshold.default_string, NULL));
 		Cvar_SetValueQuick (&r_bloomhdr_mips, strtof (r_bloomhdr_mips.default_string, NULL));
 		break;
+	case HDR_OPT_BLOOM_PRESET_HIGHTHRES:
+		Cvar_SetValueQuick (&r_bloomhdr_intensity, strtof (r_bloomhdr_intensity.default_string, NULL));
+		Cvar_SetValueQuick (&r_bloomhdr_threshold, strtof (r_bloomhdr_threshold.default_string, NULL) * 1.6f);
+		Cvar_SetValueQuick (&r_bloomhdr_mips, strtof (r_bloomhdr_mips.default_string, NULL));
+		break;
 	case HDR_OPT_BLOOM_PRESET_SOFT:
-		Cvar_SetValueQuick (&r_bloomhdr_intensity, strtof (r_bloomhdr_intensity.default_string, NULL) * 0.8f);
+		Cvar_SetValueQuick (&r_bloomhdr_intensity, strtof (r_bloomhdr_intensity.default_string, NULL) * 0.65f);
 		Cvar_SetValueQuick (&r_bloomhdr_threshold, strtof (r_bloomhdr_threshold.default_string, NULL) * 0.25f);
 		Cvar_SetValueQuick (&r_bloomhdr_mips, strtof (r_bloomhdr_mips.default_string, NULL));
 		break;
@@ -2664,36 +2674,39 @@ static void M_HDROptions_Draw (cb_context_t *cbx)
 	M_DrawPic (cbx, (320 - p->width) / 2, 4, p);
 
 	M_PreviewRow (cbx, HDR_OPT_ENABLED, top + CHARACTER_SIZE * HDR_OPT_ENABLED);
-	M_Print (cbx, MENU_LABEL_X, top + CHARACTER_SIZE * HDR_OPT_ENABLED, "HDR");
-	M_DrawCheckbox (cbx, MENU_VALUE_X, top + CHARACTER_SIZE * HDR_OPT_ENABLED, hdr_enabled.value);
+	M_Print (cbx, MENU_LABEL_X, top + CHARACTER_SIZE * HDR_OPT_ENABLED, "HDR Output");
+	M_DrawCheckbox (cbx, MENU_VALUE_X, top + CHARACTER_SIZE * HDR_OPT_ENABLED, (int)hdr_enabled.value);
 
 	M_PreviewRow (cbx, HDR_OPT_PEAK, top + CHARACTER_SIZE * HDR_OPT_PEAK);
-	M_Print (cbx, MENU_LABEL_X, top + CHARACTER_SIZE * HDR_OPT_PEAK, "Peak Brightness");
-	r = hdr_peak.value / 1000;
-	M_DrawSlider (cbx, MENU_SLIDER_X, top + CHARACTER_SIZE * HDR_OPT_PEAK, r, va ("%.0f", hdr_peak.value));
+	M_Print (cbx, MENU_LABEL_X, top + CHARACTER_SIZE * HDR_OPT_PEAK, hdr_enabled.value ? "Peak Brightness" : "N/A");
+	if (hdr_enabled.value)
+	{
+		r = hdr_peak.value / 1000;
+		M_DrawSlider (cbx, MENU_SLIDER_X, top + CHARACTER_SIZE * HDR_OPT_PEAK, r, va ("%.0f", hdr_peak.value));
+	}
 
 	M_PreviewRow (cbx, HDR_OPT_PAPER_SCENE, top + CHARACTER_SIZE * HDR_OPT_PAPER_SCENE);
 	M_Print (cbx, MENU_LABEL_X, top + CHARACTER_SIZE * HDR_OPT_PAPER_SCENE, "Paper White Scene");
-	r = hdr_paperscene.value / 400;
-	M_DrawSlider (cbx, MENU_SLIDER_X, top + CHARACTER_SIZE * HDR_OPT_PAPER_SCENE, r, va ("%.0f", hdr_paperscene.value));
+	r = hdr_enabled.value ? (hdr_paperscene.value - 1) / (400 - 1) : (sdr_paperscene.value - 1) / (80 - 1);
+	M_DrawSlider (cbx, MENU_SLIDER_X, top + CHARACTER_SIZE * HDR_OPT_PAPER_SCENE, r, va (hdr_enabled.value ? "%.0f" : "%.2f", hdr_enabled.value ? hdr_paperscene.value : sdr_paperscene.value / 80));
 
 	M_PreviewRow (cbx, HDR_OPT_PAPER_UI, top + CHARACTER_SIZE * HDR_OPT_PAPER_UI);
 	M_Print (cbx, MENU_LABEL_X, top + CHARACTER_SIZE * HDR_OPT_PAPER_UI, "Paper White UI");
-	r = hdr_paperui.value / 400;
-	M_DrawSlider (cbx, MENU_SLIDER_X, top + CHARACTER_SIZE * HDR_OPT_PAPER_UI, r, va ("%.0f", hdr_paperui.value));
+	r = hdr_enabled.value ? (hdr_paperui.value - 1) / (400 - 1) : (sdr_paperui.value - 1) / (80 - 1);
+	M_DrawSlider (cbx, MENU_SLIDER_X, top + CHARACTER_SIZE * HDR_OPT_PAPER_UI, r, va (hdr_enabled.value ? "%.0f" : "%.2f", hdr_enabled.value ? hdr_paperui.value : sdr_paperui.value / 80));
 
 	M_PreviewRow (cbx, HDR_OPT_PRESET_SAFE400, top + CHARACTER_SIZE * HDR_OPT_PRESET_SAFE400);
-	M_Print (cbx, MENU_LABEL_X, top + CHARACTER_SIZE * HDR_OPT_PRESET_SAFE400, "HDR Preset: Default Safe 400");
+	M_Print (cbx, MENU_LABEL_X, top + CHARACTER_SIZE * HDR_OPT_PRESET_SAFE400, hdr_enabled.value ? "HDR Preset: Default Safe 400" : "N/A");
 
 	M_PreviewRow (cbx, HDR_OPT_PRESET_1000, top + CHARACTER_SIZE * HDR_OPT_PRESET_1000);
-	M_Print (cbx, MENU_LABEL_X, top + CHARACTER_SIZE * HDR_OPT_PRESET_1000, "HDR Preset: \"Feels like I'm there!\" 1000");
+	M_Print (cbx, MENU_LABEL_X, top + CHARACTER_SIZE * HDR_OPT_PRESET_1000, hdr_enabled.value ? "HDR Preset: \"Feels like I'm there!\" 1000" : "N/A");
 
 	M_PreviewRow (cbx, HDR_OPT_PRESET_SDRONHDR, top + CHARACTER_SIZE * HDR_OPT_PRESET_SDRONHDR);
-	M_Print (cbx, MENU_LABEL_X, top + CHARACTER_SIZE * HDR_OPT_PRESET_SDRONHDR, "HDR Preset: SDR on HDR 400");
+	M_Print (cbx, MENU_LABEL_X, top + CHARACTER_SIZE * HDR_OPT_PRESET_SDRONHDR, hdr_enabled.value ? "HDR Preset: SDR on HDR 400" : "N/A");
 
 	M_PreviewRow (cbx, HDR_OPT_SHOULDER, top + CHARACTER_SIZE * HDR_OPT_SHOULDER);
 	M_Print (cbx, MENU_LABEL_X, top + CHARACTER_SIZE * HDR_OPT_SHOULDER, "Shoulder Start");
-	r = tonemap_shoulder.value;
+	r = (tonemap_shoulder.value - 0.01f) / (0.95f - 0.01f);
 	M_DrawSlider (cbx, MENU_SLIDER_X, top + CHARACTER_SIZE * HDR_OPT_SHOULDER, r, va ("%.2f", tonemap_shoulder.value));
 
 	M_PreviewRow (cbx, HDR_OPT_TOE, top + CHARACTER_SIZE * HDR_OPT_TOE);
@@ -2712,6 +2725,9 @@ static void M_HDROptions_Draw (cb_context_t *cbx)
 
 	M_PreviewRow (cbx, HDR_OPT_BLOOM_PRESET_DEFAULT, top + CHARACTER_SIZE * HDR_OPT_BLOOM_PRESET_DEFAULT);
 	M_Print (cbx, MENU_LABEL_X, top + CHARACTER_SIZE * HDR_OPT_BLOOM_PRESET_DEFAULT, "Bloom Preset: Default");
+
+	M_PreviewRow (cbx, HDR_OPT_BLOOM_PRESET_HIGHTHRES, top + CHARACTER_SIZE * HDR_OPT_BLOOM_PRESET_HIGHTHRES);
+	M_Print (cbx, MENU_LABEL_X, top + CHARACTER_SIZE * HDR_OPT_BLOOM_PRESET_HIGHTHRES, "Bloom Preset: High Threshold");
 
 	M_PreviewRow (cbx, HDR_OPT_BLOOM_PRESET_SOFT, top + CHARACTER_SIZE * HDR_OPT_BLOOM_PRESET_SOFT);
 	M_Print (cbx, MENU_LABEL_X, top + CHARACTER_SIZE * HDR_OPT_BLOOM_PRESET_SOFT, "Bloom Preset: Soft");

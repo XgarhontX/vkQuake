@@ -128,6 +128,8 @@ cvar_t		  tonemap_toe = {"tonemap_toe", "0.95", CVAR_ARCHIVE}; // HDR
 cvar_t		  hdr_peak = {"hdr_peak", "400", CVAR_ARCHIVE}; // HDR
 cvar_t		  hdr_paperscene = {"hdr_paperscene", "250", CVAR_ARCHIVE}; // HDR
 cvar_t		  hdr_paperui = {"hdr_paperui", "80", CVAR_ARCHIVE}; // HDR
+cvar_t		  sdr_paperscene = {"sdr_paperscene", "80", CVAR_ARCHIVE}; // HDR
+cvar_t		  sdr_paperui = {"sdr_paperui", "80", CVAR_ARCHIVE}; // HDR
 #if defined(_DEBUG)
 static cvar_t r_raydebug = {"r_raydebug", "0", 0};
 #endif
@@ -274,10 +276,12 @@ static void VID_Gamma_Init (void)
 	// Cvar_RegisterVariable (&vid_gamma);
 	// Cvar_RegisterVariable (&vid_contrast);
 	Cvar_RegisterVariable (&tonemap_shoulder);
+	Cvar_RegisterVariable (&tonemap_toe);
 	Cvar_RegisterVariable (&hdr_peak);
 	Cvar_RegisterVariable (&hdr_paperscene);
 	Cvar_RegisterVariable (&hdr_paperui);
-	Cvar_RegisterVariable (&tonemap_toe);
+	Cvar_RegisterVariable (&sdr_paperscene);
+	Cvar_RegisterVariable (&sdr_paperui);
 }
 
 /*
@@ -3589,10 +3593,10 @@ static void GL_EndRenderingTask (end_rendering_parms_t *parms)
 		float postprocess_values[4] = {
 			// vid_gamma.value,
 			// q_min (2.0f, q_max (1.0f, vid_contrast.value)),
-			q_min (0.999f, tonemap_shoulder.value),
+			tonemap_shoulder.value,
 			hdr_enabled.value ? tonemap_toe.value : tonemap_toe.value * 0.95f, // good enough correction against SDR mismatch
-			hdr_enabled.value ? q_max (0.f, hdr_peak.value) : 80.f,
-			hdr_enabled.value ? q_max (1.f, hdr_paperscene.value) : 80.f,
+			hdr_enabled.value ? hdr_peak.value : 80.f,
+			hdr_enabled.value ? hdr_paperscene.value : sdr_paperscene.value,
 		};
 		
 		R_BindPipeline (cbx, VK_PIPELINE_BIND_POINT_GRAPHICS, vulkan_globals.postprocess_pipeline);
