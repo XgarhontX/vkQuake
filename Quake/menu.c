@@ -2562,7 +2562,7 @@ static void M_HDROptions_AdjustSliders (int dir, qboolean mouse)
 		if (!hdr_enabled.value) return;
 		Cvar_SetValueQuick (&tonemap_shoulder, strtof (tonemap_shoulder.default_string, NULL));
 		Cvar_SetValueQuick (&tonemap_toe, 1.0f);
-		Cvar_SetValueQuick (&hdr_paperscene, 350.f);
+		Cvar_SetValueQuick (&hdr_paperscene, 320.f);
 		Cvar_SetValueQuick (&hdr_peak, 1000.f);
 		Cvar_SetValueQuick (&r_skycubeboost, 0.98f);
 		break;
@@ -2583,7 +2583,7 @@ static void M_HDROptions_AdjustSliders (int dir, qboolean mouse)
 		Cvar_SetValue ("tonemap_toe", f);
 		break;
 	case HDR_OPT_SKYBOXBOOST:
-		f = M_GetSliderPos (0.9f, 1, r_skycubeboost.value, false, mouse, clamped_mouse, dir, 0.01f, 0.01f);
+		f = M_GetSliderPos (0.9f, 1.f, r_skycubeboost.value, false, mouse, clamped_mouse, dir, 0.01f, 999);
 		Cvar_SetValue ("r_skycubeboost", f);
 		break;
 	case HDR_OPT_BLOOM_ENABLED:

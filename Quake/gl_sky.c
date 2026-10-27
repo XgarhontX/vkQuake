@@ -40,7 +40,7 @@ cvar_t		  r_sky_quality = {"r_sky_quality", "12", CVAR_NONE};
 cvar_t		  r_skyalpha = {"r_skyalpha", "1", CVAR_NONE};
 cvar_t		  r_skyfog = {"r_skyfog", "0.5", CVAR_NONE};
 cvar_t		  r_skywind = {"r_skywind", "1", CVAR_ARCHIVE};
-cvar_t		  r_skycubeboost = {"r_skyboxboost", "0.9", CVAR_ARCHIVE};
+cvar_t		  r_skycubeboost = {"r_skycubeboost", "0.9", CVAR_ARCHIVE};
 
 static const int skytexorder[6] = {0, 2, 1, 3, 4, 5}; // for skybox
 
