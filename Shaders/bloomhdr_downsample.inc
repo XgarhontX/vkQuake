@@ -32,20 +32,6 @@ layout (set = 1, binding = 0, rgba16f) uniform writeonly image2D dst_image;
 		return pow (max (textureLod (src_texture, uv, 0.0).rgb, vec3 (0.0)), vec3 (GAMMA)) * EXPOSURE; // to linear & exposure compensate
 	}
 
-	float KarisWeight (vec3 c)
-	{
-		return 1.0 / (1.0 + dot (c, vec3 (0.2126, 0.7152, 0.0722))); // y weight
-	}
-
-	vec3 KarisAverage (vec3 a, vec3 b, vec3 c, vec3 d) // 4 tap weighted avg
-	{
-		float wa = KarisWeight (a);
-		float wb = KarisWeight (b);
-		float wc = KarisWeight (c);
-		float wd = KarisWeight (d);
-		return (a * wa + b * wb + c * wc + d * wd) / (wa + wb + wc + wd);
-	}
-
 	// Luma Bloom.hlsl
 	vec3 QuadraticThreshold (vec3 c)
 	{
@@ -84,57 +70,33 @@ void main ()
 	vec3 result = vec3( 0.0f, 0.0f, 0.0f );
 	const vec2 uv = (vec2 (id) + 0.5) * push_constants.inv_dst_size;
 
-#if 0 // MODE: Karis
-		const vec2 t = push_constants.inv_src_size;
+	const vec2 Coords[13] = {
+		vec2( -1.0f,  1.0f ), vec2(  1.0f,  1.0f ),
+		vec2( -1.0f, -1.0f ), vec2(  1.0f, -1.0f ),
+
+		vec2(-2.0f, 2.0f), vec2( 0.0f, 2.0f), vec2( 2.0f, 2.0f),
+		vec2(-2.0f, 0.0f), vec2( 0.0f, 0.0f), vec2( 2.0f, 0.0f),
+		vec2(-2.0f,-2.0f), vec2( 0.0f,-2.0f), vec2( 2.0f,-2.0f)
+	};
+
+	const float Weights[13] = {
+		// 4 samples
+		// (1 / 4) * 0.5f = 0.125f
+		0.125f, 0.125f,
+		0.125f, 0.125f,
 		
-		const vec3 a = Fetch (uv + t * vec2 (-2, 2));
-		const vec3 b = Fetch (uv + t * vec2 (0, 2));
-		const vec3 c = Fetch (uv + t * vec2 (2, 2));
-		const vec3 d = Fetch (uv + t * vec2 (-2, 0));
-		const vec3 e = Fetch (uv);
-		const vec3 f = Fetch (uv + t * vec2 (2, 0));
-		const vec3 g = Fetch (uv + t * vec2 (-2, -2));
-		const vec3 h = Fetch (uv + t * vec2 (0, -2));
-		const vec3 i = Fetch (uv + t * vec2 (2, -2));
-		const vec3 j = Fetch (uv + t * vec2 (-1, 1));
-		const vec3 k = Fetch (uv + t * vec2 (1, 1));
-		const vec3 l = Fetch (uv + t * vec2 (-1, -1));
-		const vec3 m = Fetch (uv + t * vec2 (1, -1));
+		// 9 samples
+		// (1 / 9) * 0.5f
+		0.0555555f, 0.0555555f, 0.0555555f,
+		0.0555555f, 0.0555555f, 0.0555555f,
+		0.0555555f, 0.0555555f, 0.0555555f
+	};
 
-	#ifdef BLOOMHDR_PREFILTER
-		result = KarisAverage (j, k, l, m) * 0.5 + (KarisAverage (a, b, d, e) + KarisAverage (b, c, e, f) + KarisAverage (d, e, g, h) + KarisAverage (e, f, h, i)) * 0.125; // karis
-	#else
-		result = e * 0.125 + (a + c + g + i) * 0.03125 + (b + d + f + h) * 0.0625 + (j + k + l + m) * 0.125; // normal
-	#endif
-#else // MODE: Froyok
-		const vec2 Coords[13] = {
-			vec2( -1.0f,  1.0f ), vec2(  1.0f,  1.0f ),
-			vec2( -1.0f, -1.0f ), vec2(  1.0f, -1.0f ),
-
-			vec2(-2.0f, 2.0f), vec2( 0.0f, 2.0f), vec2( 2.0f, 2.0f),
-			vec2(-2.0f, 0.0f), vec2( 0.0f, 0.0f), vec2( 2.0f, 0.0f),
-			vec2(-2.0f,-2.0f), vec2( 0.0f,-2.0f), vec2( 2.0f,-2.0f)
-		};
-
-		const float Weights[13] = {
-			// 4 samples
-			// (1 / 4) * 0.5f = 0.125f
-			0.125f, 0.125f,
-			0.125f, 0.125f,
-			
-			// 9 samples
-			// (1 / 9) * 0.5f
-			0.0555555f, 0.0555555f, 0.0555555f,
-			0.0555555f, 0.0555555f, 0.0555555f,
-			0.0555555f, 0.0555555f, 0.0555555f
-		};
-
-		for( int i = 0; i < 13; i++ )
-		{
-			vec2 uv1 = uv + Coords[i] * push_constants.inv_src_size;
-			result += Weights[i] * Fetch (uv1);
-		}
-#endif
+	for( int i = 0; i < 13; i++ )
+	{
+		vec2 uv1 = uv + Coords[i] * push_constants.inv_src_size;
+		result += Weights[i] * Fetch (uv1);
+	}
 
 	#ifdef BLOOMHDR_PREFILTER
 		result = SetChrominance (result, 1.2); // boost keeps bloom "bleaching" highlights
