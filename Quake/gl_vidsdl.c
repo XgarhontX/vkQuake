@@ -127,7 +127,7 @@ cvar_t		  tonemap_shoulder = {"tonemap_shoulder", "0.18", CVAR_ARCHIVE}; // HDR
 cvar_t		  tonemap_toe = {"tonemap_toe", "0.95", CVAR_ARCHIVE}; // HDR
 cvar_t		  hdr_peak = {"hdr_peak", "400", CVAR_ARCHIVE}; // HDR
 cvar_t		  hdr_paperscene = {"hdr_paperscene", "250", CVAR_ARCHIVE}; // HDR
-cvar_t		  hdr_paperui = {"hdr_paperui", "40", CVAR_ARCHIVE}; // HDR
+cvar_t		  hdr_paperui = {"hdr_paperui", "80", CVAR_ARCHIVE}; // HDR
 #if defined(_DEBUG)
 static cvar_t r_raydebug = {"r_raydebug", "0", 0};
 #endif

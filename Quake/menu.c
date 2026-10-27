@@ -2557,7 +2557,7 @@ static void M_HDROptions_AdjustSliders (int dir, qboolean mouse)
 		break;
 	case HDR_OPT_PRESET_1000:
 		Cvar_SetValueQuick (&tonemap_shoulder, strtof (tonemap_shoulder.default_string, NULL));
-		Cvar_SetValueQuick (&tonemap_toe, strtof (tonemap_toe.default_string, NULL));
+		Cvar_SetValueQuick (&tonemap_toe, 1.0f);
 		Cvar_SetValueQuick (&hdr_paperscene, 350.f);
 		Cvar_SetValueQuick (&hdr_peak, 1000.f);
 		Cvar_SetValueQuick (&r_skycubeboost, 0.98f);
