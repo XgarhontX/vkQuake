@@ -1,3 +1,17 @@
+# 💡 vkQuake-hdr
+A fork that upgrades framebuffer to float for HDR rendering (and scRGB output).
+- Replaced gamma and contrast curves for [GTSport Tonemap](https://github.com/XgarhontX/vkQuake-hdr/blob/master/Shaders/postprocess.frag).
+- [Call of Duty: Advanced Warfare-style Bloom](https://github.com/XgarhontX/vkQuake-hdr/blob/master/Shaders/bloomhdr_downsample.inc) from unclamped values.
+- [Inverse tonemap skybox cubemaps](https://github.com/XgarhontX/vkQuake-hdr/blob/master/Shaders/sky_cube.frag) to reach new white point.
+- Customizable! See "HDR Rendering & Output" submenu.
+
+[![vk-Quake-2026-10-25-01-58-51-085854-2.png](https://i.postimg.cc/7ZdYkssF/vk-Quake-2026-10-25-01-58-51-085854-2.png)](https://postimg.cc/RW1z1Rzd)
+[![vk-Quake-2026-10-25-02-33-35-093338-2.png](https://i.postimg.cc/NjSfcJJP/vk-Quake-2026-10-25-02-33-35-093338-2.png)](https://postimg.cc/w15d5Vdh)
+[![vk-Quake-2026-10-25-02-38-14-093817-2.png](https://i.postimg.cc/kgBXL3cj/vk-Quake-2026-10-25-02-38-14-093817-2.png)](https://postimg.cc/G4nCsf6Y)
+[![vk-Quake-2026-10-27-11-16-24-181627.png](https://i.postimg.cc/VsxwGrhG/vk-Quake-2026-10-27-11-16-24-181627.png)](https://postimg.cc/qgxWgR4y)
+[![vk-Quake-2026-10-25-01-59-44-085946.png](https://i.postimg.cc/mkjCpfwx/vk-Quake-2026-10-25-01-59-44-085946.png)](https://postimg.cc/wRt13rZF)
+[![vk-Quake-2026-10-25-03-03-15-100318.png](https://i.postimg.cc/3N1mf5Zz/vk-Quake-2026-10-25-03-03-15-100318.png)](https://postimg.cc/GTB49fVj)
+
 # 🌋 vkQuake
 [![Windows CI](https://github.com/Novum/vkQuake/actions/workflows/build-windows.yml/badge.svg)](https://github.com/Novum/vkQuake/actions/workflows/build-windows.yml) [![Windows CI](https://github.com/Novum/vkQuake/actions/workflows/build-mingw.yml/badge.svg)](https://github.com/Novum/vkQuake/actions/workflows/build-mingw.yml) [![Windows CI](https://github.com/Novum/vkQuake/actions/workflows/build-msys2-clangarm64.yml/badge.svg)](https://github.com/Novum/vkQuake/actions/workflows/build-msys2-clangarm64.yml) [![Linux CI](https://github.com/Novum/vkQuake/actions/workflows/build-linux.yml/badge.svg)](https://github.com/Novum/vkQuake/actions/workflows/build-linux.yml) [![macOS CI](https://github.com/Novum/vkQuake/actions/workflows/build-mac.yml/badge.svg)](https://github.com/Novum/vkQuake/actions/workflows/build-mac.yml) [![Formatting](https://github.com/Novum/vkQuake/actions/workflows/clang-format-check.yml/badge.svg)](https://github.com/Novum/vkQuake/actions/workflows/clang-format-check.yml)
 
