@@ -2089,11 +2089,18 @@ enum
 	GRAPHICS_OPT_HDR_PEAK,
 	GRAPHICS_OPT_HDR_PAPER_SCENE,
 	GRAPHICS_OPT_HDR_PAPER_UI,
+	GRAPHICS_OPT_HDR_PRESET_DEFAULT,
+	GRAPHICS_OPT_SPACER_TONEMAP,
 	GRAPHICS_OPT_SHOULDER,
+	GRAPHICS_OPT_TOE,
+	GRAPHICS_OPT_SPACER_BLOOM,
 	GRAPHICS_OPT_BLOOM_ENABLED,
 	GRAPHICS_OPT_BLOOM_INTENSITY,
 	GRAPHICS_OPT_BLOOM_THRESHOLD,
 	GRAPHICS_OPT_BLOOM_MIPS,
+	GRAPHICS_OPT_BLOOM_PRESET_DEFAULT,
+	GRAPHICS_OPT_BLOOM_PRESET_SOFT,
+	GRAPHICS_OPT_SPACER_OTHERS,
 	GRAPHICS_OPT_FOV,
 	GRAPHICS_OPT_8BIT_COLOR,
 	GRAPHICS_OPT_FILTER,
@@ -2232,24 +2239,44 @@ static void M_GraphicsOptions_AdjustSliders (int dir, qboolean mouse)
 		f = M_GetSliderPos (0, 400, hdr_paperui.value, false, mouse, clamped_mouse, dir, 1, 999);
 		Cvar_SetValue ("hdr_paperui", f);
 		break;
+	case GRAPHICS_OPT_HDR_PRESET_DEFAULT:
+		Cvar_SetValueQuick (&tonemap_shoulder, strtof (tonemap_shoulder.default_string, NULL));
+		Cvar_SetValueQuick (&tonemap_toe, strtof (tonemap_toe.default_string, NULL));
+		Cvar_SetValueQuick (&hdr_paperscene, strtof (hdr_paperscene.default_string, NULL));
+		Cvar_SetValueQuick (&hdr_peak, strtof (hdr_peak.default_string, NULL));
+		break;
 	case GRAPHICS_OPT_SHOULDER:
-		f = M_GetSliderPos (0, 1, hdr_shoulder.value, false, mouse, clamped_mouse, dir, 0.01, 999);
-		Cvar_SetValue ("hdr_shoulder", f);
+		f = M_GetSliderPos (0, 1, tonemap_shoulder.value, false, mouse, clamped_mouse, dir, 0.01f, 999);
+		Cvar_SetValue ("tonemap_shoulder", f);
+		break;
+	case GRAPHICS_OPT_TOE:
+		f = M_GetSliderPos (0.5f, 1.5f, tonemap_toe.value, false, mouse, clamped_mouse, dir, 0.01f, 999);
+		Cvar_SetValue ("tonemap_toe", f);
 		break;
 	case GRAPHICS_OPT_BLOOM_ENABLED:
 		Cvar_SetValueQuick (&r_bloomhdr, (float)(((int)r_bloomhdr.value + 2 + dir) % 2));
 		break;
 	case GRAPHICS_OPT_BLOOM_INTENSITY:
-		f = M_GetSliderPos (0, 3, r_bloomhdr_intensity.value, false, mouse, clamped_mouse, dir, 0.1, 999);
+		f = M_GetSliderPos (0, 3, r_bloomhdr_intensity.value, false, mouse, clamped_mouse, dir, 0.1f, 999);
 		Cvar_SetValue ("r_bloomhdr_intensity", f);
 		break;
 	case GRAPHICS_OPT_BLOOM_THRESHOLD:
-		f = M_GetSliderPos (0, 3, r_bloomhdr_threshold.value, false, mouse, clamped_mouse, dir, 0.1, 999);
+		f = M_GetSliderPos (0, 3, r_bloomhdr_threshold.value, false, mouse, clamped_mouse, dir, 0.1f, 999);
 		Cvar_SetValue ("r_bloomhdr_threshold", f);
 		break;
 	case GRAPHICS_OPT_BLOOM_MIPS:
 		f = M_GetSliderPos (BLOOMHDR_MIN_MIPS, BLOOMHDR_MAX_MIPS, r_bloomhdr_mips.value, false, mouse, clamped_mouse, dir, 1, 999);
 		Cvar_SetValue ("r_bloomhdr_mips", f);
+		break;
+	case GRAPHICS_OPT_BLOOM_PRESET_DEFAULT:
+		Cvar_SetValueQuick (&r_bloomhdr_intensity, strtof (r_bloomhdr_intensity.default_string, NULL));
+		Cvar_SetValueQuick (&r_bloomhdr_threshold, strtof (r_bloomhdr_threshold.default_string, NULL));
+		Cvar_SetValueQuick (&r_bloomhdr_mips, strtof (r_bloomhdr_mips.default_string, NULL));
+		break;
+	case GRAPHICS_OPT_BLOOM_PRESET_SOFT:
+		Cvar_SetValueQuick (&r_bloomhdr_intensity, strtof (r_bloomhdr_intensity.default_string, NULL) * 0.8f);
+		Cvar_SetValueQuick (&r_bloomhdr_threshold, strtof (r_bloomhdr_threshold.default_string, NULL) * 0.25f);
+		Cvar_SetValueQuick (&r_bloomhdr_mips, strtof (r_bloomhdr_mips.default_string, NULL));
 		break;
 	case GRAPHICS_OPT_FOV:
 		f = M_GetSliderPos (80, 130, scr_fov.value, false, mouse, clamped_mouse, dir, 5, 999);
@@ -2428,14 +2455,28 @@ static void M_GraphicsOptions_Draw (cb_context_t *cbx)
 	r = hdr_paperui.value / 400;
 	M_DrawSlider (cbx, MENU_SLIDER_X, top + CHARACTER_SIZE * GRAPHICS_OPT_HDR_PAPER_UI, r, va ("%.0f", hdr_paperui.value));
 
+	M_PreviewRow (cbx, GRAPHICS_OPT_HDR_PRESET_DEFAULT, top + CHARACTER_SIZE * GRAPHICS_OPT_HDR_PRESET_DEFAULT);
+	M_Print (cbx, MENU_LABEL_X, top + CHARACTER_SIZE * GRAPHICS_OPT_HDR_PRESET_DEFAULT, "HDR Preset: Default");
+
 	M_PreviewRow (cbx, GRAPHICS_OPT_SHOULDER, top + CHARACTER_SIZE * GRAPHICS_OPT_SHOULDER);
 	M_Print (cbx, MENU_LABEL_X, top + CHARACTER_SIZE * GRAPHICS_OPT_SHOULDER, "Shoulder Start");
-	r = hdr_shoulder.value;
-	M_DrawSlider (cbx, MENU_SLIDER_X, top + CHARACTER_SIZE * GRAPHICS_OPT_SHOULDER, r, va ("%.2f", hdr_shoulder.value));
+	r = tonemap_shoulder.value;
+	M_DrawSlider (cbx, MENU_SLIDER_X, top + CHARACTER_SIZE * GRAPHICS_OPT_SHOULDER, r, va ("%.2f", tonemap_shoulder.value));
+
+	M_PreviewRow (cbx, GRAPHICS_OPT_TOE, top + CHARACTER_SIZE * GRAPHICS_OPT_TOE);
+	M_Print (cbx, MENU_LABEL_X, top + CHARACTER_SIZE * GRAPHICS_OPT_TOE, "Toe Strength");
+	r = (tonemap_toe.value - 0.5f) / (1.5f - 0.5f);
+	M_DrawSlider (cbx, MENU_SLIDER_X, top + CHARACTER_SIZE * GRAPHICS_OPT_TOE, r, va ("%.2f", tonemap_toe.value));
 
 	M_PreviewRow (cbx, GRAPHICS_OPT_BLOOM_ENABLED, top + CHARACTER_SIZE * GRAPHICS_OPT_BLOOM_ENABLED);
 	M_Print (cbx, MENU_LABEL_X, top + CHARACTER_SIZE * GRAPHICS_OPT_BLOOM_ENABLED, "Bloom");
 	M_DrawCheckbox (cbx, MENU_VALUE_X, top + CHARACTER_SIZE * GRAPHICS_OPT_BLOOM_ENABLED, r_bloomhdr.value);
+
+	M_PreviewRow (cbx, GRAPHICS_OPT_BLOOM_PRESET_DEFAULT, top + CHARACTER_SIZE * GRAPHICS_OPT_BLOOM_PRESET_DEFAULT);
+	M_Print (cbx, MENU_LABEL_X, top + CHARACTER_SIZE * GRAPHICS_OPT_BLOOM_PRESET_DEFAULT, "Bloom Preset: Default");
+
+	M_PreviewRow (cbx, GRAPHICS_OPT_BLOOM_PRESET_SOFT, top + CHARACTER_SIZE * GRAPHICS_OPT_BLOOM_PRESET_SOFT);
+	M_Print (cbx, MENU_LABEL_X, top + CHARACTER_SIZE * GRAPHICS_OPT_BLOOM_PRESET_SOFT, "Bloom Preset: Soft");
 
 	M_PreviewRow (cbx, GRAPHICS_OPT_BLOOM_INTENSITY, top + CHARACTER_SIZE * GRAPHICS_OPT_BLOOM_INTENSITY);
 	M_Print (cbx, MENU_LABEL_X, top + CHARACTER_SIZE * GRAPHICS_OPT_BLOOM_INTENSITY, "Bloom Intensity");

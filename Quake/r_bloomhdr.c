@@ -285,7 +285,8 @@ void R_ComputeBloomHDR (cb_context_t *cbx)
 		return;
 	
 	const VkCommandBuffer cb = cbx->cb;
-	
+
+	// barriers
 	VkImageMemoryBarrier barriers[BLOOMHDR_MAX_MIPS + 1];
 	for (int i = 0; i < effective_mips + 1; ++i)
 	{
@@ -303,7 +304,8 @@ void R_ComputeBloomHDR (cb_context_t *cbx)
 	}
 	vulkan_globals.vk_cmd_pipeline_barrier(
 		cb, VK_PIPELINE_STAGE_ALL_COMMANDS_BIT, VK_PIPELINE_STAGE_COMPUTE_SHADER_BIT, 0, 0, NULL, 0, NULL, effective_mips + 1, barriers);
-	
+
+	// which color buffer is current
 	const uint32_t scene_index = R_SceneColorBufferIndex (); // TODO: this is ugly!!!
 	
 	// Scene color

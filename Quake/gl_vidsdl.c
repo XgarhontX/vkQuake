@@ -123,7 +123,8 @@ cvar_t		  vid_fsaamode = {"vid_fsaamode", "0", CVAR_ARCHIVE};
 // cvar_t		  vid_gamma = {"gamma", "1.0", CVAR_ARCHIVE};		// johnfitz -- moved here from view.c
 // cvar_t		  vid_contrast = {"contrast", "1.0", CVAR_ARCHIVE}; // QuakeSpasm, MarkV
 cvar_t		  hdr_enabled = {"hdr_enabled", "0", CVAR_ARCHIVE}; // HDR
-cvar_t		  hdr_shoulder = {"hdr_shoulder", "0.18", CVAR_ARCHIVE}; // HDR
+cvar_t		  tonemap_shoulder = {"tonemap_shoulder", "0.18", CVAR_ARCHIVE}; // HDR
+cvar_t		  tonemap_toe = {"tonemap_toe", "1.0", CVAR_ARCHIVE}; // HDR
 cvar_t		  hdr_peak = {"hdr_peak", "400", CVAR_ARCHIVE}; // HDR
 cvar_t		  hdr_paperscene = {"hdr_paperscene", "250", CVAR_ARCHIVE}; // HDR
 cvar_t		  hdr_paperui = {"hdr_paperui", "40", CVAR_ARCHIVE}; // HDR
@@ -272,10 +273,11 @@ static void VID_Gamma_Init (void)
 {
 	// Cvar_RegisterVariable (&vid_gamma);
 	// Cvar_RegisterVariable (&vid_contrast);
-	Cvar_RegisterVariable (&hdr_shoulder);
+	Cvar_RegisterVariable (&tonemap_shoulder);
 	Cvar_RegisterVariable (&hdr_peak);
 	Cvar_RegisterVariable (&hdr_paperscene);
 	Cvar_RegisterVariable (&hdr_paperui);
+	Cvar_RegisterVariable (&tonemap_toe);
 }
 
 /*
@@ -3509,10 +3511,11 @@ static void GL_EndRenderingTask (end_rendering_parms_t *parms)
 
 		// Render post process
 		GL_Viewport (cbx, 0, 0, vid.width, vid.height, 0.0f, 1.0f);
-		float postprocess_values[4] = {
+		float postprocess_values[5] = {
 			// vid_gamma.value,
 			// q_min (2.0f, q_max (1.0f, vid_contrast.value)),
-			q_min (0.999f, q_max (0.0f, hdr_shoulder.value)),
+			q_min (0.999f, tonemap_shoulder.value),
+			tonemap_toe.value,
 			hdr_enabled.value ? q_max (0.f, hdr_peak.value) : 80.f,
 			hdr_enabled.value ? q_max (1.f, hdr_paperscene.value) : 80.f / 4.f,
 			hdr_enabled.value, // 0: sRGB, 1: 2.2
@@ -3521,7 +3524,7 @@ static void GL_EndRenderingTask (end_rendering_parms_t *parms)
 		R_BindPipeline (cbx, VK_PIPELINE_BIND_POINT_GRAPHICS, vulkan_globals.postprocess_pipeline);
 		vkCmdBindDescriptorSets (
 			cbx->cb, VK_PIPELINE_BIND_POINT_GRAPHICS, vulkan_globals.postprocess_pipeline.layout.handle, 0, 1, &postprocess_descriptor_set, 0, NULL);
-		R_PushConstants (cbx, VK_SHADER_STAGE_FRAGMENT_BIT, 0, 4 * sizeof (float), postprocess_values);
+		R_PushConstants (cbx, VK_SHADER_STAGE_FRAGMENT_BIT, 0, 5 * sizeof (float), postprocess_values);
 		vkCmdDraw (cbx->cb, 3, 1, 0, 0);
 	}
 
