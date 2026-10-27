@@ -547,6 +547,31 @@ qboolean Image_WriteJPG (const char *name, byte *data, int width, int height, in
 	return (error != 0);
 }
 
+static qboolean Image_AddHDRPNGChunk (unsigned char **png, size_t *pngsize) // TODO: AI recommended this, to add cICP chunk. does lodepng have a better way to do this?
+{
+	static const unsigned char cicp_data[] = {9, 16, 0, 1}; // BT.2100 PQ
+	unsigned char			 *chunk = NULL;
+	unsigned char			 *png_with_chunk;
+	size_t					  chunksize = 0;
+
+	if (*pngsize < 33 || lodepng_chunk_create (&chunk, &chunksize, sizeof (cicp_data), "cICP", cicp_data) != 0)
+		return false;
+	
+	// Insert cICP after IHDR and before IDAT.
+	png_with_chunk = (unsigned char *)Mem_Alloc (*pngsize + chunksize);
+	
+	memcpy (png_with_chunk, *png, 33);
+	memcpy (png_with_chunk + 33, chunk, chunksize);
+	memcpy (png_with_chunk + 33 + chunksize, *png + 33, *pngsize - 33);
+	
+	lodepng_free (*png);
+	lodepng_free (chunk);
+	
+	*png = png_with_chunk;
+	*pngsize += chunksize;
+	return true;
+}
+
 qboolean Image_WritePNG (const char *name, byte *data, int width, int height, int bpp, qboolean upsidedown)
 {
 	unsigned	   error;
@@ -557,8 +582,9 @@ qboolean Image_WritePNG (const char *name, byte *data, int width, int height, in
 	size_t		   pngsize;
 	LodePNGState   state;
 
-	if (!(bpp == 32 || bpp == 24))
-		Sys_Error ("bpp not 24 or 32");
+	if (!(bpp == 64 || bpp == 32 || bpp == 24))
+		Sys_Error ("bpp not 24, 32, or 64");
+	bool is_hdr = bpp > 32;
 
 	q_snprintf (pathname, sizeof (pathname), "%s/%s", com_gamedir, name);
 
@@ -579,6 +605,8 @@ qboolean Image_WritePNG (const char *name, byte *data, int width, int height, in
 	state.encoder.filter_strategy = LFS_PREDEFINED;
 	memset (filters, 1, height); // use filter 1; see https://www.w3.org/TR/PNG-Filters.html
 	state.encoder.predefined_filters = filters;
+	state.info_raw.bitdepth = is_hdr ? 16 : 8;
+	state.info_png.color.bitdepth = is_hdr ? 16 : 8;
 
 	if (bpp == 24)
 	{
@@ -592,6 +620,8 @@ qboolean Image_WritePNG (const char *name, byte *data, int width, int height, in
 	}
 
 	error = lodepng_encode (&png, &pngsize, flipped, width, height, &state);
+	if (error == 0 && is_hdr && !Image_AddHDRPNGChunk (&png, &pngsize))
+		error = 1;
 	if (error == 0)
 	{
 		FILE *f = Sys_fopen (pathname, "wb");

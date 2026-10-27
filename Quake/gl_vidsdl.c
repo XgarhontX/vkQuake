@@ -3308,8 +3308,11 @@ qboolean GL_AcquireNextSwapChainImage (void)
 
 void ScheduleScreenshotCopy (VkCommandBuffer command_buffer, VkBuffer *buffer, vulkan_memory_t *memory)
 {
+	const size_t bytes_per_pixel = vulkan_globals.swap_chain_format == VK_FORMAT_R16G16B16A16_SFLOAT ? 8 : 4;
+	const size_t buffer_size = (size_t)glwidth * glheight * bytes_per_pixel;
+
 	R_CreateBuffer (
-		buffer, memory, glwidth * glheight * 4, VK_BUFFER_USAGE_TRANSFER_DST_BIT, VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT, VK_MEMORY_PROPERTY_HOST_CACHED_BIT, NULL,
+		buffer, memory, buffer_size, VK_BUFFER_USAGE_TRANSFER_DST_BIT, VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT, VK_MEMORY_PROPERTY_HOST_CACHED_BIT, NULL,
 		NULL, "Screenshot");
 
 	{
@@ -3364,6 +3367,39 @@ void ScheduleScreenshotCopy (VkCommandBuffer command_buffer, VkBuffer *buffer, v
 	}
 }
 
+static float ScreenshotConvertHalfToFloat (uint16_t value)
+{
+	const unsigned exponent = (value >> 10) & 0x1f;
+	const unsigned mantissa = value & 0x03ff;
+	float		   result;
+
+	if (exponent == 0)
+		result = ldexpf ((float)mantissa, -24);
+	else if (exponent == 0x1f)
+		result = mantissa ? 0.0f : FLT_MAX;
+	else
+		result = ldexpf ((float)(mantissa | 0x0400), (int)exponent - 25);
+
+	return (value & 0x8000) ? -result : result;
+}
+
+static uint16_t ScreenshotEncodePq (float x)
+{
+	// PQ encode
+	static const float PQ_constant_M1 =  0.1593017578125f;
+	static const float PQ_constant_M2 = 78.84375f;
+	static const float PQ_constant_C1 =  0.8359375f;
+	static const float PQ_constant_C2 = 18.8515625f;
+	static const float PQ_constant_C3 = 18.6875f;
+
+	x /= 10000.f; // 10000 nits max
+	float colorPow = pow(x, PQ_constant_M1);
+	float numerator = PQ_constant_C1 + PQ_constant_C2 * colorPow;
+	float denominator = 1.f + PQ_constant_C3 * colorPow;
+	float pq = pow(numerator / denominator, PQ_constant_M2);
+	return (uint16_t)(pq * 65535.0f + 0.5f); // packed
+}
+
 void WriteScreenshot (VkBuffer buffer, vulkan_memory_t memory)
 {
 	SDL_LockMutex (vulkan_globals.queue_mutex);
@@ -3371,8 +3407,10 @@ void WriteScreenshot (VkBuffer buffer, vulkan_memory_t memory)
 	SDL_UnlockMutex (vulkan_globals.queue_mutex);
 	vulkan_globals.device_idle = true;
 
+	const qboolean is_scrgb = vulkan_globals.swap_chain_format == VK_FORMAT_R16G16B16A16_SFLOAT; // TODO: HDR10 whenever that's implemented
+
 	void *buffer_ptr;
-	vkMapMemory (vulkan_globals.device, memory.handle, 0, glwidth * glheight * 4, 0, &buffer_ptr);
+	vkMapMemory (vulkan_globals.device, memory.handle, 0, VK_WHOLE_SIZE, 0, &buffer_ptr);
 
 	ZEROED_STRUCT (VkMappedMemoryRange, range);
 	range.sType = VK_STRUCTURE_TYPE_MAPPED_MEMORY_RANGE;
@@ -3383,6 +3421,8 @@ void WriteScreenshot (VkBuffer buffer, vulkan_memory_t memory)
 	qboolean bgra = (vulkan_globals.swap_chain_format == VK_FORMAT_B8G8R8A8_UNORM) || (vulkan_globals.swap_chain_format == VK_FORMAT_B8G8R8A8_SRGB);
 	if (bgra)
 	{
+		assert (!is_scrgb);
+		
 		byte	 *data = (byte *)buffer_ptr;
 		const int size = glwidth * glheight * 4;
 		for (int i = 0; i < size; i += 4)
@@ -3394,12 +3434,46 @@ void WriteScreenshot (VkBuffer buffer, vulkan_memory_t memory)
 	}
 
 	// with the Steam API active, screenshots go to the Steam library instead (from Ironwail)
-	if (Steam_SaveScreenshot (buffer_ptr, glwidth, glheight))
+	if (!is_scrgb && Steam_SaveScreenshot (buffer_ptr, glwidth, glheight)) // TODO: Steam only accepts 8bit?
 		Con_Printf ("Wrote screenshot to the Steam library\n");
 	else
 	{
 		qboolean ok;
-		if (!q_strncasecmp (screenshot_ext, "png", sizeof (screenshot_ext)))
+		if (is_scrgb /*&& !q_strncasecmp (screenshot_ext, "png", sizeof (screenshot_ext))*/) // force PNG
+		{
+			const size_t pixel_count = (size_t)glwidth * glheight;
+			byte *png_pixels = (byte *)Mem_Alloc (pixel_count * 8); // TODO: make Image_WritePNG accept uint16_t?
+
+			const uint16_t *src = (const uint16_t *)buffer_ptr;
+			for (size_t i = 0; i < pixel_count; i++)
+			{
+				// to 32bit float
+				float r = ScreenshotConvertHalfToFloat (src[i * 4 + 0]);
+				float g = ScreenshotConvertHalfToFloat (src[i * 4 + 1]);
+				float b = ScreenshotConvertHalfToFloat (src[i * 4 + 2]);
+
+				// BT709 to BT2020
+				r = 0.627404f * r + 0.329283f * g + 0.043313f * b;
+				g = 0.069097f * r + 0.919540f * g + 0.011362f * b;
+				b = 0.016391f * r + 0.088013f * g + 0.895595f * b;
+
+				// PQ encode
+				const float channels[3] = {r, g, b};
+				for (int c = 0; c < 3; c++)
+				{
+					const uint16_t value = ScreenshotEncodePq (channels[c] * 80.f); // 1 = 80 nits
+					png_pixels[i * 8 + c * 2 + 0] = (byte)(value >> 8);
+					png_pixels[i * 8 + c * 2 + 1] = (byte)value;
+				}
+
+				// 1 alpha
+				png_pixels[i * 8 + 6] = 0xff;
+				png_pixels[i * 8 + 7] = 0xff;
+			}
+			ok = Image_WritePNG (screenshot_imagename, png_pixels, glwidth, glheight, 64, true);
+			Mem_Free (png_pixels);
+		}
+		else if (!q_strncasecmp (screenshot_ext, "png", sizeof (screenshot_ext)))
 			ok = Image_WritePNG (screenshot_imagename, buffer_ptr, glwidth, glheight, 32, true);
 		else if (!q_strncasecmp (screenshot_ext, "tga", sizeof (screenshot_ext)))
 			ok = Image_WriteTGA (screenshot_imagename, buffer_ptr, glwidth, glheight, 32, true);
@@ -3418,6 +3492,7 @@ void WriteScreenshot (VkBuffer buffer, vulkan_memory_t memory)
 			Con_Printf ("SCR_ScreenShot_f: Couldn't create %s\n", screenshot_imagename);
 	}
 
+	vkUnmapMemory (vulkan_globals.device, memory.handle);
 	R_FreeBuffer (buffer, &memory, NULL);
 }
 
@@ -5022,7 +5097,8 @@ SCR_ScreenShot_f -- johnfitz
 void SCR_ScreenShot_f (void)
 {
 	if ((vulkan_globals.swap_chain_format != VK_FORMAT_B8G8R8A8_UNORM) && (vulkan_globals.swap_chain_format != VK_FORMAT_B8G8R8A8_SRGB) &&
-		(vulkan_globals.swap_chain_format != VK_FORMAT_R8G8B8A8_UNORM) && (vulkan_globals.swap_chain_format != VK_FORMAT_R8G8B8A8_SRGB))
+		(vulkan_globals.swap_chain_format != VK_FORMAT_R8G8B8A8_UNORM) && (vulkan_globals.swap_chain_format != VK_FORMAT_R8G8B8A8_SRGB) &&
+		(vulkan_globals.swap_chain_format != VK_FORMAT_R16G16B16A16_SFLOAT))
 	{
 		Con_Printf ("SCR_ScreenShot_f: Unsupported surface format\n");
 		return;
@@ -5043,6 +5119,12 @@ void SCR_ScreenShot_f (void)
 		}
 	}
 
+	if (vulkan_globals.swap_chain_format == VK_FORMAT_R16G16B16A16_SFLOAT && q_strcasecmp (screenshot_ext, "png"))
+	{
+		Con_Printf ("SCR_ScreenShot_f: scRGB screenshots require PNG format\n");
+		return;
+	}
+
 	// read quality as the 3rd param (only used for JPG)
 	screenshot_quality = 90;
 	if (Cmd_Argc () >= 3)
@@ -5054,7 +5136,8 @@ void SCR_ScreenShot_f (void)
 	}
 
 	if ((vulkan_globals.swap_chain_format != VK_FORMAT_B8G8R8A8_UNORM) && (vulkan_globals.swap_chain_format != VK_FORMAT_B8G8R8A8_SRGB) &&
-		(vulkan_globals.swap_chain_format != VK_FORMAT_R8G8B8A8_UNORM) && (vulkan_globals.swap_chain_format != VK_FORMAT_R8G8B8A8_SRGB))
+		(vulkan_globals.swap_chain_format != VK_FORMAT_R8G8B8A8_UNORM) && (vulkan_globals.swap_chain_format != VK_FORMAT_R8G8B8A8_SRGB) &&
+		(vulkan_globals.swap_chain_format != VK_FORMAT_R16G16B16A16_SFLOAT))
 	{
 		Con_Printf ("SCR_ScreenShot_f: Unsupported surface format\n");
 		return;
