@@ -1602,7 +1602,8 @@ static void SCR_DrawGUI (void *unused)
 	SDL_LockMutex (draw_qcvm_mutex);
 
 	// HDR UI Brightness: apply
-	float brightness_ratio_inv = 1-(hdr_paperui.value / hdr_paperscene.value / 4);
+	float brightness_ratio = hdr_enabled.value ? hdr_paperui.value / hdr_paperscene.value : sdr_paperui.value / sdr_paperscene.value;
+	float brightness_ratio_inv = 1-(brightness_ratio / 4);
 	R_PushConstants (cbx, VK_SHADER_STAGE_ALL_GRAPHICS, (4*4 + 3 + 1) * sizeof (float), 1 * sizeof (float), &brightness_ratio_inv);
 	
 	if (scr_drawdialog) // new game confirm
