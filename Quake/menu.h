@@ -39,6 +39,7 @@ enum m_state_e
 	m_sound,
 	m_video,
 	m_graphics,
+	m_hdr,
 	m_keys,
 	m_help,
 	m_quit,

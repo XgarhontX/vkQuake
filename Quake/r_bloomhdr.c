@@ -36,7 +36,7 @@ static uint32_t working_height[BLOOMHDR_MAX_MIPS]; // resolution
 static VkSampler sampler; // main linear sampler
 
 static int effective_mips; // mips calculated for render size
-static float r_bloomhdr_mips_prev; // dirty check for vid_restart
+static int r_bloomhdr_mips_prev; // dirty check for vid_restart
 
 // Full resolution scene delta (gamma space), written by the final upsample and blended by the composite.
 static VkImage delta_image;
@@ -74,8 +74,9 @@ static int R_BloomHDREffectiveMips (void)
 bool R_BloomHDRMipsChanged (void)
 {
 	if (r_bloomhdr.value == 0) return false;
-	bool is_mips_changed = r_bloomhdr_mips_prev != r_bloomhdr_mips.value;
-	r_bloomhdr_mips_prev = r_bloomhdr_mips.value;
+	int r_bloomhdr_mips_int = (int)floorf (r_bloomhdr_mips.value);
+	bool is_mips_changed = r_bloomhdr_mips_prev != r_bloomhdr_mips_int;
+	r_bloomhdr_mips_prev = r_bloomhdr_mips_int;
 	return is_mips_changed;
 }
 
