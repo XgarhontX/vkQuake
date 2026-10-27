@@ -2579,7 +2579,7 @@ static void M_HDROptions_AdjustSliders (int dir, qboolean mouse)
 		break;
 	case HDR_OPT_SKYBOXBOOST:
 		f = M_GetSliderPos (0.9f, 1, r_skycubeboost.value, false, mouse, clamped_mouse, dir, 0.01f, 999);
-		Cvar_SetValue ("tonemap_skyboxboost", f);
+		Cvar_SetValue ("r_skycubeboost", f);
 		break;
 	case HDR_OPT_BLOOM_ENABLED:
 		Cvar_SetValueQuick (&r_bloomhdr, (float)(((int)r_bloomhdr.value + 2 + dir) % 2));
