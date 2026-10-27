@@ -3592,7 +3592,7 @@ static void GL_EndRenderingTask (end_rendering_parms_t *parms)
 			q_min (0.999f, tonemap_shoulder.value),
 			tonemap_toe.value,
 			hdr_enabled.value ? q_max (0.f, hdr_peak.value) : 80.f,
-			hdr_enabled.value ? q_max (1.f, hdr_paperscene.value) : 80.f / 4.f,
+			hdr_enabled.value ? q_max (1.f, hdr_paperscene.value) : 80.f,
 			hdr_enabled.value, // 0: sRGB, 1: 2.2
 		};
 		

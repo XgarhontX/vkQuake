@@ -1604,7 +1604,7 @@ static void SCR_DrawGUI (void *unused)
 	// HDR UI Brightness: apply
 	if (hdr_enabled.value > 0)
 	{
-		float brightness_ratio_inv = 1-(hdr_paperui.value / hdr_paperscene.value);
+		float brightness_ratio_inv = 1-((hdr_paperui.value / hdr_paperscene.value) / 4.0f);
 		R_PushConstants (cbx, VK_SHADER_STAGE_ALL_GRAPHICS, (4*4 + 3 + 1) * sizeof (float), 1 * sizeof (float), &brightness_ratio_inv);
 	}
 	
