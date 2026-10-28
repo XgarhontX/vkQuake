@@ -125,6 +125,7 @@ cvar_t		  vid_fsaamode = {"vid_fsaamode", "0", CVAR_ARCHIVE};
 cvar_t		  hdr_enabled = {"hdr_enabled", "0", CVAR_ARCHIVE}; // HDR
 cvar_t		  tonemap_shoulder = {"tonemap_shoulder", "0.18", CVAR_ARCHIVE}; // HDR
 cvar_t		  tonemap_toe = {"tonemap_toe", "0.95", CVAR_ARCHIVE}; // HDR
+cvar_t		  tonemap_blowout = {"tonemap_blowout", "0", CVAR_ARCHIVE}; // HDR
 cvar_t		  hdr_peak = {"hdr_peak", "400", CVAR_ARCHIVE}; // HDR
 cvar_t		  hdr_paperscene = {"hdr_paperscene", "250", CVAR_ARCHIVE}; // HDR
 cvar_t		  hdr_paperui = {"hdr_paperui", "80", CVAR_ARCHIVE}; // HDR
@@ -277,6 +278,7 @@ static void VID_Gamma_Init (void)
 	// Cvar_RegisterVariable (&vid_contrast);
 	Cvar_RegisterVariable (&tonemap_shoulder);
 	Cvar_RegisterVariable (&tonemap_toe);
+	Cvar_RegisterVariable (&tonemap_blowout);
 	Cvar_RegisterVariable (&hdr_peak);
 	Cvar_RegisterVariable (&hdr_paperscene);
 	Cvar_RegisterVariable (&hdr_paperui);
@@ -3590,19 +3592,20 @@ static void GL_EndRenderingTask (end_rendering_parms_t *parms)
 
 		// Render post process
 		GL_Viewport (cbx, 0, 0, vid.width, vid.height, 0.0f, 1.0f);
-		float postprocess_values[4] = {
+		float postprocess_values[5] = {
 			// vid_gamma.value,
 			// q_min (2.0f, q_max (1.0f, vid_contrast.value)),
 			tonemap_shoulder.value,
 			hdr_enabled.value ? tonemap_toe.value : tonemap_toe.value * 0.95f, // good enough correction against SDR mismatch
 			hdr_enabled.value ? hdr_peak.value : 80.f,
 			hdr_enabled.value ? hdr_paperscene.value : sdr_paperscene.value,
+			tonemap_blowout.value,
 		};
 		
 		R_BindPipeline (cbx, VK_PIPELINE_BIND_POINT_GRAPHICS, vulkan_globals.postprocess_pipeline);
 		vkCmdBindDescriptorSets (
 			cbx->cb, VK_PIPELINE_BIND_POINT_GRAPHICS, vulkan_globals.postprocess_pipeline.layout.handle, 0, 1, &postprocess_descriptor_set, 0, NULL);
-		R_PushConstants (cbx, VK_SHADER_STAGE_FRAGMENT_BIT, 0, 4 * sizeof (float), postprocess_values);
+		R_PushConstants (cbx, VK_SHADER_STAGE_FRAGMENT_BIT, 0, 5 * sizeof (float), postprocess_values);
 		vkCmdDraw (cbx->cb, 3, 1, 0, 0);
 	}
 

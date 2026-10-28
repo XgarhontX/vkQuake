@@ -2498,6 +2498,7 @@ enum
 	HDR_OPT_SPACER_TONEMAP,
 	HDR_OPT_SHOULDER,
 	HDR_OPT_TOE,
+	HDR_OPT_BLOWOUT,
 	HDR_OPT_SKYBOXBOOST,
 	HDR_OPT_SPACER_BLOOM,
 	HDR_OPT_BLOOM_ENABLED,
@@ -2554,6 +2555,7 @@ static void M_HDROptions_AdjustSliders (int dir, qboolean mouse)
 		if (!hdr_enabled.value) return;
 		Cvar_SetValueQuick (&tonemap_shoulder, strtof (tonemap_shoulder.default_string, NULL));
 		Cvar_SetValueQuick (&tonemap_toe, strtof (tonemap_toe.default_string, NULL));
+		Cvar_SetValueQuick (&tonemap_blowout, strtof (tonemap_blowout.default_string, NULL));
 		Cvar_SetValueQuick (&hdr_paperscene, strtof (hdr_paperscene.default_string, NULL));
 		Cvar_SetValueQuick (&hdr_peak, strtof (hdr_peak.default_string, NULL));
 		Cvar_SetValueQuick (&r_skycubeboost, strtof (r_skycubeboost.default_string, NULL));
@@ -2562,7 +2564,8 @@ static void M_HDROptions_AdjustSliders (int dir, qboolean mouse)
 		if (!hdr_enabled.value) return;
 		Cvar_SetValueQuick (&tonemap_shoulder, strtof (tonemap_shoulder.default_string, NULL));
 		Cvar_SetValueQuick (&tonemap_toe, 1.0f);
-		Cvar_SetValueQuick (&hdr_paperscene, 320.f);
+		Cvar_SetValueQuick (&tonemap_blowout, 1.0f);
+		Cvar_SetValueQuick (&hdr_paperscene, 300.f);
 		Cvar_SetValueQuick (&hdr_peak, 1000.f);
 		Cvar_SetValueQuick (&r_skycubeboost, 0.98f);
 		break;
@@ -2570,6 +2573,7 @@ static void M_HDROptions_AdjustSliders (int dir, qboolean mouse)
 		if (!hdr_enabled.value) return;
 		Cvar_SetValueQuick (&tonemap_shoulder, strtof (tonemap_shoulder.default_string, NULL));
 		Cvar_SetValueQuick (&tonemap_toe, strtof (tonemap_toe.default_string, NULL));
+		Cvar_SetValueQuick (&tonemap_blowout, strtof (tonemap_blowout.default_string, NULL));
 		Cvar_SetValueQuick (&hdr_paperscene, 400.f);
 		Cvar_SetValueQuick (&hdr_peak, 400.f);
 		Cvar_SetValueQuick (&r_skycubeboost, strtof (r_skycubeboost.default_string, NULL));
@@ -2581,6 +2585,9 @@ static void M_HDROptions_AdjustSliders (int dir, qboolean mouse)
 	case HDR_OPT_TOE:
 		f = M_GetSliderPos (0.5f, 1.5f, tonemap_toe.value, false, mouse, clamped_mouse, dir, 0.01f, 0.01f);
 		Cvar_SetValue ("tonemap_toe", f);
+		break;
+	case HDR_OPT_BLOWOUT:
+		Cvar_SetValueQuick (&tonemap_blowout, (float)(((int)tonemap_blowout.value + 2 + dir) % 2));
 		break;
 	case HDR_OPT_SKYBOXBOOST:
 		f = M_GetSliderPos (0.9f, 1.f, r_skycubeboost.value, false, mouse, clamped_mouse, dir, 0.01f, 999);
@@ -2714,6 +2721,10 @@ static void M_HDROptions_Draw (cb_context_t *cbx)
 	r = (tonemap_toe.value - 0.5f) / (1.5f - 0.5f);
 	M_DrawSlider (cbx, MENU_SLIDER_X, top + CHARACTER_SIZE * HDR_OPT_TOE, r, va ("%.2f", tonemap_toe.value));
 
+	M_PreviewRow (cbx, HDR_OPT_BLOWOUT, top + CHARACTER_SIZE * HDR_OPT_BLOWOUT);
+	M_Print (cbx, MENU_LABEL_X, top + CHARACTER_SIZE * HDR_OPT_BLOWOUT, "Stronger Blowout");
+	M_DrawCheckbox (cbx, MENU_VALUE_X, top + CHARACTER_SIZE * HDR_OPT_BLOWOUT, (int)tonemap_blowout.value);
+
 	M_PreviewRow (cbx, HDR_OPT_SKYBOXBOOST, top + CHARACTER_SIZE * HDR_OPT_SKYBOXBOOST);
 	M_Print (cbx, MENU_LABEL_X, top + CHARACTER_SIZE * HDR_OPT_SKYBOXBOOST, "Sky Cubemap Boost");
 	r = (r_skycubeboost.value - 0.9f) / (1.0f - 0.9f);
@@ -2721,7 +2732,7 @@ static void M_HDROptions_Draw (cb_context_t *cbx)
 
 	M_PreviewRow (cbx, HDR_OPT_BLOOM_ENABLED, top + CHARACTER_SIZE * HDR_OPT_BLOOM_ENABLED);
 	M_Print (cbx, MENU_LABEL_X, top + CHARACTER_SIZE * HDR_OPT_BLOOM_ENABLED, "Bloom");
-	M_DrawCheckbox (cbx, MENU_VALUE_X, top + CHARACTER_SIZE * HDR_OPT_BLOOM_ENABLED, r_bloomhdr.value);
+	M_DrawCheckbox (cbx, MENU_VALUE_X, top + CHARACTER_SIZE * HDR_OPT_BLOOM_ENABLED, (int)r_bloomhdr.value);
 
 	M_PreviewRow (cbx, HDR_OPT_BLOOM_PRESET_DEFAULT, top + CHARACTER_SIZE * HDR_OPT_BLOOM_PRESET_DEFAULT);
 	M_Print (cbx, MENU_LABEL_X, top + CHARACTER_SIZE * HDR_OPT_BLOOM_PRESET_DEFAULT, "Bloom Preset: Default");

@@ -10,6 +10,7 @@ layout (push_constant) uniform PushConsts
 	float toe;
 	float peak;
 	float paperscene;
+	float alt_blowout;
 }
 push_constants;
 
@@ -43,16 +44,16 @@ layout (location = 0) out vec4 out_frag_color;
 // const float toneCompression = 1.5f;
 // const float overshootShoulder = 0.8f;
 // 
-// const mat3 BT709_TO_BT2020_MAT = mat3(
-//     vec3(0.6274039149284363, 0.06909728795289993, 0.0163914393633604),
-//     vec3(0.3292830288410187, 0.9195404052734375, 0.08801330626010895),
-//     vec3(0.04331306740641594, 0.01136231515556574, 0.8955952525138855));
-// const mat3 BT2020_TO_BT709_MAT = mat3(
-//     vec3(1.6604909896850586, -0.12455047667026520, -0.01815076358616352),
-//     vec3(-0.5876411199569702, 1.1328998804092407, -0.10057889670133591),
-//     vec3(-0.07284986227750778, -0.00834942236542702, 1.1187297105789185));
-// vec3 BT709ToBT2020(vec3 bt709) { return BT709_TO_BT2020_MAT * bt709; }
-// vec3 BT2020ToBT709(vec3 bt2020) { return BT2020_TO_BT709_MAT * bt2020; }
+const mat3 BT709_TO_BT2020_MAT = mat3(
+    vec3(0.6274039149284363, 0.06909728795289993, 0.0163914393633604),
+    vec3(0.3292830288410187, 0.9195404052734375, 0.08801330626010895),
+    vec3(0.04331306740641594, 0.01136231515556574, 0.8955952525138855));
+const mat3 BT2020_TO_BT709_MAT = mat3(
+    vec3(1.6604909896850586, -0.12455047667026520, -0.01815076358616352),
+    vec3(-0.5876411199569702, 1.1328998804092407, -0.10057889670133591),
+    vec3(-0.07284986227750778, -0.00834942236542702, 1.1187297105789185));
+vec3 BT709ToBT2020(vec3 bt709) { return BT709_TO_BT2020_MAT * bt709; }
+vec3 BT2020ToBT709(vec3 bt2020) { return BT2020_TO_BT709_MAT * bt2020; }
 // 
 // const vec3 M1 = vec3(2610.f / 16384.f);           // 0.1593017578125f;
 // const vec3 M2 = vec3(128.f * (2523.f / 4096.f));  // 78.84375f;
@@ -251,9 +252,11 @@ void main ()
 		float t = (push_constants.toe);
 
 		// GT Tonemap (Exponential Rolloff w/ Toe)
-		frag = BT709_TO_BT2020_EXPANDED_BT709_MAT * frag;
+		// if (push_constants.alt_blowout > 0) frag = BT709_TO_BT2020_EXPANDED_BT709_MAT * frag;
+    if (push_constants.alt_blowout > 0) frag = BT709ToBT2020(frag);
 		frag = GTTonemap(frag, p, s, t);
-		frag = BT2020_EXPANDED_BT709_TO_BT709_MAT * frag;
+    if (push_constants.alt_blowout > 0) frag = BT2020ToBT709(frag);
+		// if (push_constants.alt_blowout > 0) frag = BT2020_EXPANDED_BT709_TO_BT709_MAT * frag;
 
 		// frag = JzAzBzFromBT709(frag, 10000/203.f, 1.7);
 		// frag = hueShiftBezoldBrucke(frag, y * push_constants.hue_shift);
