@@ -1601,11 +1601,12 @@ static void SCR_DrawGUI (void *unused)
 
 	SDL_LockMutex (draw_qcvm_mutex);
 
-	// HDR UI Brightness: apply
+	// HDR UI Brightness
 	float brightness_ratio = hdr_enabled.value ? hdr_paperui.value / hdr_paperscene.value : sdr_paperui.value / sdr_paperscene.value;
-	float brightness_ratio_inv = 1-(brightness_ratio / 4);
-	R_PushConstants (cbx, VK_SHADER_STAGE_ALL_GRAPHICS, (4*4 + 3 + 1) * sizeof (float), 1 * sizeof (float), &brightness_ratio_inv);
-	
+	float brightness_ratio_inv = 1-(brightness_ratio * (1/4.f));
+	static const float brightness_ratio_inv_def = 1.f-(1/4.f);
+	R_PushConstants_UIBrightness (cbx, brightness_ratio_inv_def); // HDR UI Brightness: default
+
 	if (scr_drawdialog) // new game confirm
 	{
 		if (con_forcedup)
@@ -1630,12 +1631,15 @@ static void SCR_DrawGUI (void *unused)
 	}
 	else
 	{
+		R_PushConstants_UIBrightness (cbx, brightness_ratio_inv); // HDR UI Brightness: user
 		SCR_DrawCrosshair (cbx); // johnfitz
 		SCR_DrawNet (cbx);
 		SCR_DrawTurtle (cbx);
 		SCR_DrawPause (cbx);
 		SCR_DrawSaving (cbx);
+		R_PushConstants_UIBrightness (cbx, brightness_ratio_inv_def); // HDR UI Brightness: default
 		SCR_CheckDrawCenterString (cbx);
+		R_PushConstants_UIBrightness (cbx, brightness_ratio_inv); // HDR UI Brightness: user
 		Sbar_Draw (cbx);
 		SCR_DrawDevStats (cbx); // johnfitz
 		SCR_DrawSpeed (cbx);
@@ -1643,13 +1647,11 @@ static void SCR_DrawGUI (void *unused)
 		SCR_DrawSpeeds (cbx);
 		SCR_DrawClock (cbx); // johnfitz
 		SCR_DrawEdictInfo (cbx);
+		R_PushConstants_UIBrightness (cbx, brightness_ratio_inv_def); // HDR UI Brightness: default
 		SCR_DrawConsole (cbx);
 		M_Draw (cbx);
 	}
-
-	// HDR UI Brightness: revert
-	brightness_ratio_inv = 0;
-	R_PushConstants (cbx, VK_SHADER_STAGE_ALL_GRAPHICS, (4*4 + 3 + 1) * sizeof (float), 1 * sizeof (float), &brightness_ratio_inv);
+	R_PushConstants_UIBrightness (cbx, 0); // HDR UI Brightness: disable
 	
 	SDL_UnlockMutex (draw_qcvm_mutex);
 	R_EndDebugUtilsLabel (cbx);

@@ -2698,7 +2698,7 @@ static void M_HDROptions_Draw (cb_context_t *cbx)
 	M_DrawSlider (cbx, MENU_SLIDER_X, top + CHARACTER_SIZE * HDR_OPT_PAPER_SCENE, r, va (hdr_enabled.value ? "%.0f" : "%.2f", hdr_enabled.value ? hdr_paperscene.value : sdr_paperscene.value / 80));
 
 	M_PreviewRow (cbx, HDR_OPT_PAPER_UI, top + CHARACTER_SIZE * HDR_OPT_PAPER_UI);
-	M_Print (cbx, MENU_LABEL_X, top + CHARACTER_SIZE * HDR_OPT_PAPER_UI, "Paper White UI");
+	M_Print (cbx, MENU_LABEL_X, top + CHARACTER_SIZE * HDR_OPT_PAPER_UI, "Paper White HUD");
 	r = hdr_enabled.value ? (hdr_paperui.value - 1) / (400 - 1) : (sdr_paperui.value - 1) / (80 - 1);
 	M_DrawSlider (cbx, MENU_SLIDER_X, top + CHARACTER_SIZE * HDR_OPT_PAPER_UI, r, va (hdr_enabled.value ? "%.0f" : "%.2f", hdr_enabled.value ? hdr_paperui.value : sdr_paperui.value / 80));
 

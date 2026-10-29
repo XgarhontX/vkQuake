@@ -866,6 +866,11 @@ static inline void R_PushConstants (cb_context_t *cbx, VkShaderStageFlags stage_
 	vulkan_globals.vk_cmd_push_constants (cbx->cb, cbx->current_pipeline.layout.handle, stage_flags, offset, size, data);
 }
 
+static inline void R_PushConstants_UIBrightness (cb_context_t *cbx, float brightness_ratio_inv)
+{
+	R_PushConstants (cbx, VK_SHADER_STAGE_ALL_GRAPHICS, (4*4 + 3 + 1) * sizeof (float), 1 * sizeof (float), &brightness_ratio_inv);
+}
+
 static inline void R_BeginDebugUtilsLabel (cb_context_t *cbx, const char *name)
 {
 #ifdef _DEBUG
