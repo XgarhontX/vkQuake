@@ -45,6 +45,9 @@ void WriteMBOITMoments (vec4 frag_color, out float out_b0, out vec4 out_moments0
 
 	out_b0 = absorbance;
 	out_moments0 = vec4 (z, z2, z2 * z, z2 * z2) * absorbance;
+
+	// out_b0 = clamp (out_b0, 0.0f, 1.0f); // TODO: this doesn't work
+	// out_moments0 = clamp (out_moments0, 0.0f, 1.0f);
 }
 
 // Reconstructs the transmittance at the given depth from four normalized power moments
@@ -130,8 +133,9 @@ void WriteMBOITComposite (vec4 frag_color, float b0, vec4 moments0, out vec4 out
 	float transmittance = MBOITTransmittanceAtDepth (MBOITDepth (), b0, moments0);
 	out_color = vec4 (frag_color.rgb * frag_color.a * transmittance, frag_color.a * transmittance);
 
-	out_color.rgb = max (out_color.rgb, vec3(0.0));
-	out_color.w = min (out_color.w, 1.0);
+	// out_color.rgb = max (out_color.rgb, vec3(0.0)); // TODO: this doesn't work
+	// out_color.w = min (out_color.w, 1.0);
+	// out_color = clamp (out_color, 0.0f, 1.0f);
 }
 
 void MBOITWrite (vec4 frag_color)
