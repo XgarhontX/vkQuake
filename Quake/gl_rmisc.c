@@ -4139,10 +4139,10 @@ static void R_CreatePostprocessPipelines ()
 		pipeline_create_infos_t bloom;
 		
 		// Compute prefilter/downsample/upsample
-		R_CreateComputePipeline (&bloomhdr_compute_pipeline_downfilter, bloomhdr_downfilter_comp_module, 0, NULL, "bloomhdr_downfilter");
-		R_CreateComputePipeline (&bloomhdr_compute_pipeline_down, bloomhdr_down_comp_module, 0, NULL, "bloomhdr_down");
-		R_CreateComputePipeline (&bloomhdr_compute_pipeline_up, bloomhdr_up_comp_module, 0, NULL, "bloomhdr_up");
-		R_CreateComputePipeline (&bloomhdr_compute_pipeline_upfilter, bloomhdr_upfilter_comp_module, 0, NULL, "bloomhdr_upfilter");
+		R_CreateComputePipeline (&bloomhdr_compute_pipeline_downfilter, bloomhdr_downfilter_comp_module, 0, NULL, "bloomhdr_downfilter", true);
+		R_CreateComputePipeline (&bloomhdr_compute_pipeline_down, bloomhdr_down_comp_module, 0, NULL, "bloomhdr_down", true);
+		R_CreateComputePipeline (&bloomhdr_compute_pipeline_up, bloomhdr_up_comp_module, 0, NULL, "bloomhdr_up", true);
+		R_CreateComputePipeline (&bloomhdr_compute_pipeline_upfilter, bloomhdr_upfilter_comp_module, 0, NULL, "bloomhdr_upfilter", true);
 
 		// Fragment composite
 		R_CopyPipelineCreateInfos (&bloom, &base);
