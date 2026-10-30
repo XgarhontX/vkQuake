@@ -241,6 +241,7 @@ GLOBJS = \
 	gl_rmisc.o \
 	r_passes.o \
 	r_ssao.o \
+	r_bloomhdr.o \
 	r_part.o \
 	r_part_fte.o \
 	r_world.o \
